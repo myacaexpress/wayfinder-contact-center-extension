@@ -42,7 +42,7 @@ Do not load call-only `src`: its manifest version is injected by the build. Do n
 
 The calling tabs must belong to the same agent in one Chrome profile. The extension uses the authenticated Wayfinder page bridge; the web app, server, data models, migrations, and Integrity/capture backends remain owned by [Wayfinder Contact Center](https://github.com/myacaexpress/wayfinder-contact-center). This is not a standalone replacement for those services.
 
-See [availability recovery and disposition capture](docs/availability-and-dispositions.md), [integration boundaries and controlled acceptance](docs/integration-and-acceptance.md), [migration provenance](docs/migration.md), [call-only package instructions](extensions/call-protection/README.md), and [store release checklist](docs/allcalls-store-release.md). Disposition reporting, sidebar UI and duplicate report prevention are future scope; detecting the busy label Dispositioning does not implement them.
+See [availability recovery and disposition capture](docs/availability-and-dispositions.md), [integration boundaries and controlled acceptance](docs/integration-and-acceptance.md), [migration provenance](docs/migration.md), [call-only package instructions](extensions/call-protection/README.md), and [store release checklist](docs/allcalls-store-release.md). The draft [manual report capture](docs/allcalls-report-capture.md) adds caller-free source snapshots with a separate Wayfinder import/reporting dependency. It is independent of the busy label Dispositioning; unattended sync and source completeness remain unimplemented.
 
 ## Assets and licensing
 

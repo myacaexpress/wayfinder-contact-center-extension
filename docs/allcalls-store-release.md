@@ -145,3 +145,12 @@ Official references:
 - https://developer.chrome.com/docs/webstore/publish
 - https://developer.chrome.com/docs/webstore/cws-dashboard-distribution
 - https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
+
+## Unreleased report-capture delta
+
+The draft manual report tool locally processes operational call IDs, selected
+agent names, timestamps, costs and separate human/AI outcome labels into an
+operator-downloaded JSON file. It adds no automatic transmission or permissions.
+Before any release, update the listing/privacy disclosures to cover this explicit
+reporting function and the separately approved Wayfinder admin import. Existing
+0.3.13 store/release evidence does not cover this draft.

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "extensions/allcalls-mode"
 DESTINATION = ROOT / "dist/combined/wayfinder-call-modes.zip"
 FILES = ("manifest.json", "background.js", "detector.js", "allcalls.js", "wayfinder.js",
-         "popup.html", "popup.css", "popup.js", "README.md",
+         "popup.html", "popup.css", "popup.js", "README.md", "report.html", "report-tool.js", "report-capture.js",
          "capture.html", "capture.mjs", "capture-core.mjs",
          "integrity-verify.mjs", "integrity-verify-background.mjs",
          "integrity-verify-wayfinder.js", "integrity-verify-popup.js",
