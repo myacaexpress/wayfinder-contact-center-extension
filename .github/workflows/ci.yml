@@ -1,0 +1,64 @@
+name: Extension CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  call-protection:
+    uses: ./.github/workflows/call-protection.yml
+  combined:
+    name: Combined developer extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: npm run test:combined
+      - run: npm run build:combined
+      - name: Verify combined package
+        run: python3 scripts/verify-combined-package.py
+      - name: Record candidate provenance
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          Path('dist/combined/provenance.json').write_text(json.dumps({
+              'variant': 'combined-developer',
+              'version': json.loads(Path('extensions/allcalls-mode/manifest.json').read_text())['version'],
+              'source_sha': os.environ['SOURCE_SHA'],
+              'run_id': os.environ['RUN_ID'],
+              'run_attempt': os.environ['RUN_ATTEMPT'],
+              'published': False,
+          }, indent=2) + '\n')
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: combined-developer-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: |
+            dist/combined/*.zip
+            dist/combined/*.sha256
+            dist/combined/provenance.json
+          if-no-files-found: error
+          retention-days: 30

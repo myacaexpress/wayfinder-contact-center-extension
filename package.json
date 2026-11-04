@@ -1,0 +1,20 @@
+{
+  "name": "@wayfinder/contact-center-extension",
+  "version": "0.3.11",
+  "private": true,
+  "description": "Wayfinder Chrome extension workspace: call-only and combined variants",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "test:combined": "node --test extensions/allcalls-mode/*.test.cjs",
+    "test:call-protection": "npm --prefix extensions/call-protection test",
+    "test": "npm run test:combined && npm run test:call-protection",
+    "build:combined": "python3 scripts/package-call-modes.py",
+    "build:call-protection": "npm --prefix extensions/call-protection run build",
+    "build": "npm run build:combined && npm run build:call-protection"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.0"
+  }
+}
