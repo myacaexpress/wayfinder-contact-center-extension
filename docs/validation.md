@@ -13,3 +13,9 @@ No browser was launched; no extension installed/enabled; no real availability ch
 ## Hosted CI audit
 
 [Extension CI run 41867632919](https://github.com/myacaexpress/wayfinder-contact-center-extension/actions/runs/41867632919) passed both jobs for PR head e7523b070681151f1be3e11323b19d690c5ef452 using Node 22 / Python 3.12. Downloaded artifacts had valid JSON provenance referencing the tested PR integration commit 35f10398d85930a71f98355ff79f86ae45dbcd2d. CodeRabbit reported “Review skipped”; this is not a completed independent review. Subsequent migration-audit changes require their own CI result.
+
+## 0.3.12 recovery candidate
+
+After porting the previously unmerged Claude reader fix, 150 combined synthetic tests and all six standalone package checks pass. Both packages build and the expanded dependency/reproducibility verifier passes. New reader regression tests run in both variants. The 34-asset identity statement above describes only the original 0.3.11 migration; current runtime changes are intentional and reviewed in the diff.
+
+Companion application PR #482: 79 targeted call-mode/controller tests pass; new restoration regressions fail against the original source; ruff and mypy pass. No real provider/session is used. This backend change remains outside the ZIP and unmerged/undeployed.

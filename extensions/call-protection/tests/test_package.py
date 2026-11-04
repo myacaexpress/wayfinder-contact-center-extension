@@ -25,7 +25,7 @@ class StorePackageTest(unittest.TestCase):
                 names = set(archive.namelist())
                 self.assertEqual(names, set(packager.FILES) | {'manifest.json'})
                 manifest = json.loads(archive.read('manifest.json'))
-                self.assertEqual(manifest['permissions'], ['storage'])
+                self.assertEqual(manifest['permissions'], ['storage', 'scripting'])
                 self.assertNotIn('optional_host_permissions', manifest)
                 self.assertNotIn('web_accessible_resources', manifest)
                 self.assertNotIn('update_url', manifest)
@@ -63,7 +63,7 @@ class StorePackageTest(unittest.TestCase):
             shutil.copytree(packager.SOURCE, source)
             path = source / 'manifest.json'
             original = json.loads(path.read_text())
-            for change in ({'permissions': ['storage', 'scripting']},
+            for change in ({'permissions': ['storage', 'scripting', 'tabs']},
                            {'optional_host_permissions': ['https://example.com/*']},
                            {'version': '0.3.11'}):
                 path.write_text(json.dumps({**original, **change}))
@@ -101,7 +101,7 @@ class StorePackageTest(unittest.TestCase):
             for script in extension.glob('*.js'):
                 subprocess.run(['node', '--check', str(script)], check=True, capture_output=True)
             tests = []
-            for name in ('background', 'detector', 'allcalls', 'popup'):
+            for name in ('background', 'detector', 'allcalls', 'popup', 'reader-recovery'):
                 target = extension / f'{name}.test.cjs'
                 shutil.copyfile(packager.ROOT / 'tests' / target.name, target)
                 tests.append(str(target))

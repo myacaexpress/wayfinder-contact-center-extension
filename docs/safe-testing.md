@@ -6,7 +6,7 @@ Run `npm test` after installing the locked development dependencies. These tests
 
 These tests do not need an AllCalls login, do not open Chrome, and do not change real availability. They cover detection, guard conditions, pairing, stale observations, simulated switch confirmation, manual-choice preservation, connection failures and popup behavior. Run under a network-restricted executor for an additional boundary. Installing npm dependencies needs registry access; the actual checks do not.
 
-Current migration results: 141 combined synthetic tests passed, plus all 6 standalone package tests (including its extracted-ZIP behavior suite). Both ZIPs build, and combined package reproducibility/source equality checks pass. This proves simulated behavior, not vendor integration.
+Current 0.3.12 candidate results: 150 combined synthetic tests passed, plus all 6 standalone package tests (including its extracted-ZIP behavior suite). Both ZIPs build, and combined package reproducibility/source equality checks pass. This proves simulated behavior, not vendor integration.
 
 ## Proposed next step: visual simulator, not yet implemented
 

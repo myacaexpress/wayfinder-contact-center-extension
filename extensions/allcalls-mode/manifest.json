@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wayfinder Call Protection",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "Automatically pause the other calling system while busy in AllCalls or Wayfinder. No audio or recording access.",
   "permissions": [
     "storage",
@@ -28,7 +28,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://allcalls.io/take-calls*"
+        "https://allcalls.io/*"
       ],
       "js": [
         "detector.js",

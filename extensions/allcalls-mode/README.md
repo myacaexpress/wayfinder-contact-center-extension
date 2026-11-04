@@ -1,4 +1,4 @@
-# Wayfinder Call Protection — combined developer extension (0.3.11)
+# Wayfinder Call Protection — combined developer extension (0.3.12)
 
 This document retains the feature history below. For this repository’s build commands,
 variant selection and current install paths, see the [workspace README](../../README.md).
@@ -208,3 +208,7 @@ Health import and Verify share this parser. Missing, hidden, malformed or ambigu
 NPN rows still block, and the observed value must exactly match the server-bound
 account. No permissions changed. Reload the unpacked extension and refresh
 Wayfinder after updating; a website deployment alone cannot update unpacked files.
+
+## Reader recovery (0.3.12)
+
+The reader survives client-side navigation into Take Calls and is installed at most once per page context. When protection is active, a missing reader can be injected once and retried without reloading the tab. Discarded tabs, permission failures and navigation away remain explicit errors. Recovery does not infer idle, change availability locally, or bypass the existing server/manual/busy guards. Refresh idle Wayfinder pages after an update to reconnect their bridge. See [0.3.12 release notes](../../docs/recovery-0.3.12.md) for the separate backend dependency.

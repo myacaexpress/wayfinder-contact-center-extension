@@ -1,5 +1,11 @@
 (() => {
-  if(location.pathname!=='/take-calls')return;
+  // Idempotent: background re-injection after an extension update or a
+  // client-side route into Take Calls must not start a second reader.
+  if(globalThis.wayfinderAllCallsReader)return;
+  globalThis.wayfinderAllCallsReader=true;
+  // Gate per sample, not at injection: the AllCalls app routes client-side,
+  // so this script may be injected on another page and navigate here later.
+  const onPage=()=>location.pathname==='/take-calls';
   const pageSession=crypto.randomUUID();
   const visible=el=>!!(el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
   const switchControl=()=>{
@@ -13,6 +19,7 @@
     if(event.isTrusted&&event.target instanceof Element&&event.target.closest('button[role="switch"]')===switchControl())manualGeneration++;
   },true);
   function read(){
+    if(!onPage())return {observed:'unknown',delivery:'unknown',allcalls_session:pageSession};
     const control=switchControl();
     const delivery=control?(control.getAttribute('aria-checked')==='true'?'on':'off'):'unknown';
     // Compare fixed labels locally; never transmit page text or caller data.
@@ -25,7 +32,7 @@
     return {observed,delivery,allcalls_session:pageSession};
   }
   async function sample(){
-    if(inFlight)return;
+    if(inFlight||!onPage())return;
     const value=read(),now=Date.now(),key=value.observed+value.delivery+manualGeneration;
     if(key===lastStatus&&now-lastSent<1900)return;
     lastStatus=key;lastSent=now;inFlight=true;
@@ -39,7 +46,7 @@
     if(sender.id===chrome.runtime.id&&!sender.tab&&message.type==='ack-observation'&&Number.isSafeInteger(message.manual_generation)&&message.manual_generation>=0&&message.manual_generation<=manualGeneration){if(message.allcalls_session!==pageSession){reply({accepted:false});return;}acknowledgedManual=Math.max(acknowledgedManual,message.manual_generation);reply({accepted:true});return;}
     if(sender.id===chrome.runtime.id&&!sender.tab&&message.type==='read-observation'){reply({...read(),manual_allcalls:manualGeneration!==acknowledgedManual,manual_generation:manualGeneration,measured_at:Math.floor(Date.now()/1000)});return;}
     if(sender.id!==chrome.runtime.id||sender.tab||message.type!=='set-delivery'||!['on','off'].includes(message.target)||!Number.isSafeInteger(message.issued_at)||Math.abs(Date.now()-message.issued_at)>5000)return;
-    if(message.allcalls_session!==pageSession){reply({accepted:false});return;}
+    if(!onPage()||message.allcalls_session!==pageSession){reply({accepted:false});return;}
     const control=switchControl(),value=read();
     if(control&&message.target==='off'&&control.getAttribute('aria-checked')==='false'){reply({accepted:true});return;}
     if(!control||['unknown','ringing','talking','wrap'].includes(value.observed)||(message.target==='on'&&(['unknown','ringing','talking','wrap'].includes(value.observed)||manualGeneration!==acknowledgedManual))){reply({accepted:false});return;}

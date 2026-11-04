@@ -48,14 +48,14 @@ def candidate_assets(source=SOURCE):
 
 def validate_assets(assets):
     manifest = json.loads(assets['manifest.json'])
-    if manifest['permissions'] != ['storage'] or manifest['host_permissions'] != HOSTS:
+    if manifest['permissions'] != ['storage', 'scripting'] or manifest['host_permissions'] != HOSTS:
         raise ValueError('Review changed call-protection permissions')
     if set(manifest) != {'manifest_version', 'name', 'version', 'description',
                          'permissions', 'host_permissions', 'background', 'action',
                          'content_scripts', 'icons'}:
         raise ValueError('Unexpected manifest fields')
     if manifest['content_scripts'] != [
-        {'matches': ['https://allcalls.io/take-calls*'], 'js': ['detector.js', 'allcalls.js']},
+        {'matches': ['https://allcalls.io/*'], 'js': ['detector.js', 'allcalls.js']},
         {'matches': HOSTS[1:], 'js': ['wayfinder.js']}
     ]:
         raise ValueError('Unexpected content scripts')

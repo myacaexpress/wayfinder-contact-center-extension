@@ -4,7 +4,7 @@
 
 Both Wayfinder and AllCalls may be Available while idle. This is not an exclusive mode selector. When either system is ringing, active or wrapping, pause the other system without disconnecting a call. After the call and wrap-up finish, restore only the availability that automation changed, with fresh observations and the normal eligibility gates. Preserve manual Offline/Break and manager restrictions.
 
-The repeated reported failure is Wayfinder remaining blocked so the agent cannot become available again. This migration preserves source; it does not claim to fix that failure. The account-level interlock and restoration are owned by the Wayfinder backend, so an extension-only UI change is insufficient proof of recovery.
+The repeated reported failure is Wayfinder remaining blocked so the agent cannot become available again. The initial migration preserved source. The subsequent 0.3.12 reader fix and separate backend draft PR #482 address specific reproduced failures; see recovery-0.3.12.md. They do not establish live resolution. The account-level interlock and restoration are owned by the Wayfinder backend, so an extension-only UI change is insufficient proof of recovery.
 
 ## Mandatory simulated scenarios
 

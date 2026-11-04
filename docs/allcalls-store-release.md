@@ -1,6 +1,6 @@
 # Wayfinder Call Protection — unlisted store candidate
 
-Status: prepared locally, NOT submitted or published. No install link exists yet.
+Status: 0.3.12 review candidate; NOT submitted or published. No install link exists yet. Backend recovery companion and installed acceptance remain pending.
 Version: independently managed in `extensions/call-protection/package.json` (initially 0.3.11). Production application activation/settings are unchanged.
 
 ## Build and verification
@@ -17,7 +17,7 @@ npm run build
 Upload `extensions/call-protection/dist/wayfinder-call-protection-VERSION.zip`,
 not the historical developer download ZIP. The store manifest is at ZIP root.
 This candidate contains **call protection only**: no Integrity Verify, Integrity
-Sync, public-PDF capture, scripting permission, optional hosts, or web-accessible
+Sync, public-PDF capture, optional hosts, or web-accessible
 Integrity resources. The combined developer extension remains unchanged.
 
 Source, manifest template, tests, dependency lockfile and version are owned by
@@ -64,6 +64,7 @@ Single purpose: Coordinate agent availability between AllCalls and Wayfinder to
 reduce overlapping call offers.
 
 Permission justifications:
+- scripting (0.3.12): Re-inject only bundled AllCalls reader files in an existing, non-discarded Take Calls tab when protection is active or the user explicitly enables it. No remote code or generic execution interface.
 - storage: Remember protection preference, opaque pairing identity and last switch;
   retain current observations in browser session storage.
 - allcalls.io: Read fixed call-state labels and operate the uniquely identified

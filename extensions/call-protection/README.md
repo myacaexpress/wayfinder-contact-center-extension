@@ -57,3 +57,9 @@ installed older extension versions. Run both suites when changing that protocol.
 Never run both extensions together: duplicate controllers can interfere with
 availability. Agents needing Integrity should keep the combined developer version
 until a separately reviewed distribution strategy supports both safely.
+
+## 0.3.12 recovery candidate
+
+Ports Claude Fable's previously unmerged AllCalls reader-recovery work to this independent package. Adds `scripting` permission solely to re-inject bundled `detector.js` and `allcalls.js` into the exact AllCalls Take Calls tab. Existing host permissions are unchanged. Declarative injection now covers AllCalls routes so login-to-Take-Calls navigation works; reading and commands remain gated to `/take-calls`. No Integrity/PDF functionality is added. The packaging tests enforce this reviewed scope.
+
+This fixes a missing-reader failure mode, not every stuck-availability cause. See [release notes](../../docs/recovery-0.3.12.md), including the unmerged backend companion.

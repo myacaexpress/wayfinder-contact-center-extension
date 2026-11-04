@@ -12,6 +12,29 @@ const activeOrPending=async()=>{const prefs=await settings();return prefs.enable
 const ownPage=url=>{try{const u=new URL(url);return u.origin==='https://allcalls.io'&&u.pathname==='/take-calls';}catch{return false;}};
 const wfPage=url=>{try{const u=new URL(url);return ['https://wayfindercontactcenter.com','https://www.wayfindercontactcenter.com'].includes(u.origin)&&['/agent','/manager'].includes(u.pathname);}catch{return false;}};
 const valid=m=>['unknown','off','waiting','ringing','talking','wrap'].includes(m?.observed)&&['on','off','unknown'].includes(m?.delivery)&&Number.isSafeInteger(m?.measured_at);
+// Content scripts die on extension update and are never injected after a
+// client-side route into Take Calls. Re-injection is idempotent (allcalls.js
+// guards itself) and never reloads the page, so an active call is untouched.
+const READER=['detector.js','allcalls.js'];
+const inject=async (id,allowEnable=false)=>{
+ try{
+  const tab=await chrome.tabs.get(id);
+  if(tab.discarded||!ownPage(tab.url)||(!allowEnable&&!await activeOrPending()))return false;
+  await chrome.scripting.executeScript({target:{tabId:id},files:READER});
+  return true;
+ }catch{return false;}
+};
+const readObservation=async (id,allowEnable=false)=>{
+ try{return await message(id,{type:'read-observation'});}
+ catch(error){
+  if(!await inject(id,allowEnable))throw error;
+  return message(id,{type:'read-observation'});
+ }
+};
+chrome.runtime.onInstalled?.addListener(()=>{void (async()=>{
+ if(!await activeOrPending())return;
+ for(const tab of await chrome.tabs.query({url:'https://allcalls.io/*'}))if(tab.id&&ownPage(tab.url)&&!tab.discarded)await inject(tab.id);
+})().catch(()=>{});});
 const message=(id,body)=>new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>reject(new Error('Calling tab did not respond within 12 seconds. Refresh that tab.')),12000);
  chrome.tabs.sendMessage(id,body).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
@@ -84,7 +107,7 @@ async function poll(sender){
  if(ac.length===1){
    s.allcallsTab=ac[0].id;
    try{
-     const m=await message(ac[0].id,{type:'read-observation'});
+     const m=await readObservation(ac[0].id);
      if(!valid(m))throw new Error('AllCalls status reader did not return a valid observation.');
      const accepted=await observe(m,{tab:ac[0]});
      if(accepted?.accepted&&Number.isSafeInteger(m.manual_generation))await message(ac[0].id,{type:'ack-observation',manual_generation:m.manual_generation,allcalls_session:m.allcalls_session});
@@ -106,7 +129,7 @@ async function configure(m){
  s.observed='unknown';s.delivery='unknown';s.measured_at=0;
  if(m.enabled&&ac.length===1){
    s.allcallsTab=ac[0].id;
-   try{const sample=await message(ac[0].id,{type:'read-observation'});if(valid(sample))Object.assign(s,{observed:sample.observed,delivery:sample.delivery,measured_at:sample.measured_at,manualAllcalls:sample.manual_allcalls===true,allcallsSession:sample.allcalls_session||null});else s.issue='allcalls_reader_unavailable';}
+   try{const sample=await readObservation(ac[0].id,true);if(valid(sample))Object.assign(s,{observed:sample.observed,delivery:sample.delivery,measured_at:sample.measured_at,manualAllcalls:sample.manual_allcalls===true,allcallsSession:sample.allcalls_session||null});else s.issue='allcalls_reader_unavailable';}
    catch{s.issue='allcalls_reader_unavailable';}
  }
  await synchronize(s,{enabled:m.enabled});
