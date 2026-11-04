@@ -8,11 +8,11 @@ These tests do not need an AllCalls login, do not open Chrome, and do not change
 
 Current 0.3.12 candidate results: 150 combined synthetic tests passed, plus all 6 standalone package tests (including its extracted-ZIP behavior suite). Both ZIPs build, and combined package reproducibility/source equality checks pass. This proves simulated behavior, not vendor integration.
 
-## Proposed next step: visual simulator, not yet implemented
+## Available now: local visual simulator
 
-Build a separate local test harness that displays fake AllCalls and Wayfinder panels and injects the production controller into a mocked adapter. Provide buttons for idle, ringing, talking, wrap-up, manual Offline/Break, stale sample and connection failure. Show expected versus observed switch commands in an event log.
+Run `npm run simulator` from the repository and open http://127.0.0.1:4313. See [the exact click walkthroughs and isolation limits](../tools/simulator/README.md).
 
-Use synthetic data, an isolated browser profile with no real calling extensions or sessions, local fixture pages only, and a network policy blocking every non-local request. The harness must not request permissions for allcalls.io or wayfindercontactcenter.com, open real vendor URLs, reuse cookies, or forward adapter commands to a real account. Assert the network block and mock-only command destination before exposing controls. This needs its own implementation review; no visual harness or browser runtime test was run during migration.
+The tool executes the unmodified extension controller and reader against in-memory Chrome adapters and a fake DOM. The Wayfinder/provider side is a labeled model. The UI is loopback-only, authenticated vendor sessions are never used, and no network-capable production adapter is loaded. The simulator is developer tooling outside both ZIP allowlists; it does not alter the submitted store package.
 
 ## What is not a safe substitute
 
