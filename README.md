@@ -47,3 +47,7 @@ See [availability recovery and disposition capture](docs/availability-and-dispos
 ## Assets and licensing
 
 Bundled W icon provenance and Sora's existing font license are retained in `assets/fonts/`. `scripts/generate-call-mode-icons.py` is an optional authoring utility requiring Pillow and fonttools[woff]; ordinary builds use committed PNGs. No new source-code license is granted by this migration.
+
+## Test without receiving calls
+
+Run `npm run simulator`, then open http://127.0.0.1:4313. This developer-only visual simulator uses fake accounts and the real controller/reader scripts. See [walkthrough and limitations](tools/simulator/README.md). It is not included in the Chrome package.

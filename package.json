@@ -9,10 +9,12 @@
   "scripts": {
     "test:combined": "node --test extensions/allcalls-mode/*.test.cjs",
     "test:call-protection": "npm --prefix extensions/call-protection test",
-    "test": "npm run test:combined && npm run test:call-protection",
+    "test": "npm run test:combined && npm run test:call-protection && npm run test:simulator",
     "build:combined": "python3 scripts/package-call-modes.py",
     "build:call-protection": "npm --prefix extensions/call-protection run build",
-    "build": "npm run build:combined && npm run build:call-protection"
+    "build": "npm run build:combined && npm run build:call-protection",
+    "simulator": "node tools/simulator/server.cjs",
+    "test:simulator": "node --test tools/simulator/*.test.cjs"
   },
   "devDependencies": {
     "jsdom": "30.1.0"
