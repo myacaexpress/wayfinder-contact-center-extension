@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wayfinder Call Protection",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "Automatically pause the other calling system while busy in AllCalls or Wayfinder. No audio or recording access.",
   "permissions": [
     "storage",
