@@ -27,7 +27,7 @@ test('modeled pending blocks duplicate dispatch, then confirms and supports next
 test('modeled pending timeouts exhaust bounded restoration; manual Offline cancels pending',async t=>{
  const s=await setup(t);await s.act('ac-talk');await s.act('restore-pending');await s.act('ac-idle');await s.act('tick');
  for(let i=0;i<12;i++)await s.act('timeout');
- let r=await s.act('tick');assert.equal(r.fake.attempts,12);assert.equal(r.fake.ownWF,false);assert.equal(r.fake.state,'Offline');
+ let r=await s.act('tick');assert.equal(r.fake.attempts,12);assert.equal(r.fake.ownWF,false);assert.equal(r.fake.state,'Offline');assert.equal(r.status.result.diagnostics.reason,'restore_unconfirmed');
  await s.act('reset');await s.act('enable');await s.act('tick');await s.act('ac-talk');await s.act('restore-pending');await s.act('ac-idle');await s.act('tick');
  await s.act('wf-off');r=await s.act('confirm');assert.equal(r.fake.state,'Offline');assert.equal(r.fake.pending,false);
 });

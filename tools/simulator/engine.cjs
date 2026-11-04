@@ -12,7 +12,7 @@ class Simulator {
   log(kind, message) { this.events.push({at: this.now, kind, message}); this.events = this.events.slice(-150); }
   reset() {
     this.dom?.window.close(); this.now = Date.now(); this.events = []; this.local = {}; this.session = {};
-    this.fake = {enabled:false, state:'Available', busy:false, ownWF:false, ownAC:false, clear:0, attempts:0, pending:false, fault:'none', disconnected:false, denied:false};
+    this.fake = {enabled:false, state:'Available', busy:false, ownWF:false, ownAC:false, clear:0, attempts:0, pending:false, attention:false, fault:'none', disconnected:false, denied:false};
     this.makeReader(); this.makeWorker(); this.log('boundary','LOCAL simulation only. No real tabs, credentials, provider or production HTTP clients.');
   }
   clock() { const self=this; return class extends Date { constructor(...args){super(...(args.length?args:[self.now]));} static now(){return self.now;} }; }
@@ -54,7 +54,7 @@ class Simulator {
   backend(b) {
     // Explicit behavioral model, NOT the Python production service.
     const f=this.fake; let target='none',reason='clear';
-    if(b.action==='configure'){f.enabled=b.enabled;f.ownWF=f.ownAC=false;f.pending=false;f.attempts=0;f.clear=0;}
+    if(b.action==='configure'){f.enabled=b.enabled;f.ownWF=f.ownAC=false;f.pending=false;f.attention=false;f.attempts=0;f.clear=0;}
     if(!f.enabled)return this.result('none','protection_off');
     if(b.manual_allcalls)f.ownAC=false;
     if(f.session&&f.session!==b.allcalls_session){f.ownAC=false;this.log('model','New AllCalls document: discard automatic resume ownership');}
@@ -72,16 +72,17 @@ class Simulator {
         if(b.delivery==='on')f.ownAC=false;
         if(f.ownWF&&f.state==='Offline') {
           if(!f.pending){
-            f.attempts++;
+            f.attempts++;f.attention=true;
             if(f.fault==='fail'){this.log('model',`FAKE provider FAILED restore attempt ${f.attempts}/12`);f.fault='none';}
             else if(f.fault==='pending'){f.pending=true;this.log('model',`FAKE provider PENDING restore attempt ${f.attempts}/12`);}
-            else {f.state='Available';f.ownWF=false;f.attempts=0;this.log('model','FAKE provider confirmed Wayfinder restoration');}
+            else {f.state='Available';f.ownWF=false;f.attention=false;f.attempts=0;this.log('model','FAKE provider confirmed Wayfinder restoration');}
             if(f.attempts>=12&&!f.pending)f.ownWF=false;
           }
           if(f.state==='Offline')reason='restore_unconfirmed';
         }
       }
     }
+    if(reason==='clear'&&f.attention)reason='restore_unconfirmed';
     return this.result(target,reason);
   }
   result(target,reason) {const f=this.fake;return {agent_id:'synthetic-agent',enabled:f.enabled,return_after_wrap:false,mode:f.enabled?'auto':'off',mcp_allowed:f.enabled&&reason==='clear',allcalls_target:target,diagnostics:{reason,reason_text:reason,wayfinder_state:f.state}};}
@@ -104,12 +105,12 @@ class Simulator {
       await this.tick();
     }else if(['wf-idle','wf-busy','wf-off','wf-break'].includes(action)){
       f.busy=action==='wf-busy';
-      if(action==='wf-off'||action==='wf-break'){f.state=action==='wf-off'?'Offline':'Break';f.ownWF=false;f.pending=false;f.attempts=0;}
+      if(action==='wf-off'||action==='wf-break'){f.state=action==='wf-off'?'Offline':'Break';f.ownWF=false;f.pending=false;f.attention=false;f.attempts=0;}
       if(action==='wf-idle'&&!f.ownWF)f.state='Available';
       await this.tick();
     }else if(action==='restore-fail'||action==='restore-pending'){f.fault=action==='restore-fail'?'fail':'pending';}
     else if(action==='confirm'){
-      if(f.pending){f.pending=false;f.ownWF=false;f.state='Available';f.attempts=0;f.fault='none';this.log('model','FAKE provider-only confirmation clears pending ownership');}await this.tick();
+      if(f.pending){f.pending=false;f.ownWF=false;f.attention=false;f.state='Available';f.attempts=0;f.fault='none';this.log('model','FAKE provider-only confirmation clears pending ownership');}await this.tick();
     }else if(action==='timeout'){
       if(f.pending){f.pending=false;if(f.attempts>=12)f.ownWF=false;this.log('model','FAKE pending restore expired');}this.now+=61000;await this.tick();
     }else if(action==='switch-block'||action==='switch-allow'){this.control.disabled=action==='switch-block';this.log('fixture',this.control.disabled?'FAKE switch disabled: actual reader must refuse click':'FAKE switch enabled');await this.tick();}
