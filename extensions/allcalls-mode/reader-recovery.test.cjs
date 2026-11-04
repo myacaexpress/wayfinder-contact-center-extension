@@ -16,7 +16,7 @@ function background({readerAlive=true,discarded=false,enabled=true,url="https://
  const chrome={runtime:{id:'ext',getURL:p=>'chrome-extension://ext/'+p,onMessage:{addListener:fn=>listener=fn},onInstalled:{addListener:fn=>installed=fn}},
   storage:{session:{get:async()=>stored,set:async value=>{stored=structuredClone(value);}},local:{get:async()=>local,set:async value=>{local={...local,...structuredClone(value)};}}},
   scripting:{executeScript:async options=>{injected.push(options);if(denied)throw new Error("Synthetic permission denial");state.readerAlive=true;}},
-  tabs:{query:async q=>typeof q.url==='string'?[{id:1,url:'https://allcalls.io/take-calls',discarded:state.discarded}]:[{id:2,url:'https://www.wayfindercontactcenter.com/agent'}],
+  tabs:{query:async q=>typeof q.url==='string'?[{id:state.tabId||1,url:'https://allcalls.io/take-calls',discarded:state.discarded}]:[{id:2,url:'https://www.wayfindercontactcenter.com/agent'}],
    get:async id=>({id,url,discarded:state.discarded}),
    sendMessage:async(id,msg)=>{sent.push({id,msg});
     if(msg.type==='read-observation'){if(!state.readerAlive)throw new Error('Could not establish connection. Receiving end does not exist.');return sample;}
@@ -26,7 +26,8 @@ function background({readerAlive=true,discarded=false,enabled=true,url="https://
    onRemoved:{addListener:()=>{}}},windows:{update:async()=>{}}};
  vm.runInNewContext(readFileSync(__dirname+'/background.js','utf8').replace(/^import .*\ninstallIntegrity(?:Verify|Health)Bridge\(chrome\);\n/gm,''),{chrome,crypto:webcrypto,Date,URL,Promise,Error,Number,setTimeout,clearTimeout});
  const poll=()=>new Promise(resolve=>{if(listener({type:'poll'},{id:'ext',url:'https://www.wayfindercontactcenter.com/agent',tab:{id:2}},resolve)!==true)resolve({});});
- return {poll,sent,injected,installed:()=>installed(),state:()=>stored.state,config:state};
+ const status=()=>new Promise(resolve=>listener({type:'status'},{id:'ext',url:'chrome-extension://ext/popup.html'},resolve));
+ return {poll,status,sent,injected,installed:()=>installed(),state:()=>stored.state,config:state};
 }
 
 test('a dead reader is re-injected once and the same poll completes with a real observation',async()=>{
@@ -105,4 +106,22 @@ test('after navigating away the reader rejects switch commands even if old contr
   const result=await f.send({type:'set-delivery',target:'off',issued_at:Date.now(),allcalls_session:session});
   assert.equal(result.accepted,false);assert.equal(clicks,0);
  }finally{f.close();}
+});
+
+
+test('popup retains a failed reader warning until that reader actually recovers',async()=>{
+ const h=background({readerAlive:false,denied:true});await h.poll();
+ const count=h.sent.length;
+ for(let i=0;i<2;i++)assert.equal((await h.status()).issue,'allcalls_reader_unavailable');
+ assert.equal(h.sent.length,count,'opening status must not issue commands or claim recovery');
+ h.config.readerAlive=true;h.state().confirmedAt=0;await h.poll();
+ assert.equal((await h.status()).issue,'');
+ assert.equal(h.state().observed,'off');
+});
+
+test('popup does not carry a failed reader warning onto a different AllCalls tab',async()=>{
+ const h=background({readerAlive:false,denied:true});await h.poll();
+ h.config.tabId=3;
+ assert.equal((await h.status()).issue,'');
+ assert.equal(h.state().issue,'allcalls_reader_unavailable','status read does not mutate saved evidence');
 });
