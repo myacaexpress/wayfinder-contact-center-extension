@@ -1,0 +1,109 @@
+commit f225bfd3036ee551624e3b4fac5931151037105d
+Author: Shawn Milner <82838706+shawnmilner@users.noreply.github.com>
+Date: 2026-10-30T21:47:25-07:00
+Subject: fix(CC-CALL-01): declare supported extension test runtimes
+
+commit bfade30964372f3365d1d6844a61242cb11bee8f
+Author: Shawn Milner <82838706+shawnmilner@users.noreply.github.com>
+Date: 2026-10-30T21:45:36-07:00
+Subject: feat(CC-CALL-01): add standalone extension sources tests and release artifacts
+
+commit cd4913a9168d9dc29c9585456a3ce2fde0a6f03c
+Author: Shawn Milner <82838706+shawnmilner@users.noreply.github.com>
+Date: 2026-10-30T21:07:47-07:00
+Subject: fix(CC-CALL-01): refresh store candidate and isolate call protection
+
+commit 0689820f6be8b323cd8708f8434c78308b9d18ce
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-23T05:55:33-07:00
+Subject: CC-CALL-01: Fix Integrity Profile NPN parsing in extension (#300)
+
+commit 5f314344b3d205db9b3e6f2dc09c166535684854
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-22T22:08:38-07:00
+Subject: CC-CALL-01: Make extension workspace selection recognizable (#297)
+
+commit 2d0beb8d49dd9815d482e9094520512e363c54a1
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-22T18:08:37-07:00
+Subject: CC-INT-09 Import saved Integrity pharmacies and health conditions (#289)
+
+commit 0e2ad3b6ef76ad8b30a4413a4ab5a4fb494bfcd3
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-22T17:55:52-07:00
+Subject: CC-AUTH-04 Default new extension installations to protection off (#285)
+
+commit ecf47e90dd2d153ca974c57062f38675e6fef312
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-22T17:43:54-07:00
+Subject: CC-AUTH-04 Fix protection toggle pairing and prioritize Integrity Verify (#284)
+
+commit b4f4296864a03967f525edb133bdf7d590a9ddbb
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-21T20:12:41-07:00
+Subject: feat(CC-INT-09): automatically import saved Integrity medications and doctors into chat (#265)
+
+commit 59b79708b02e5c46f3fa7c9a8998d5ae64166d7e
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-20T09:48:57-05:00
+Subject: feat(CC-MARX-03): add pilot one-shot Integrity Verify handoff
+
+commit 8d1841ab7be242e8b871695b4bb29cd617daa29b
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-19T11:40:52-05:00
+Subject: Prepare single-purpose AllCalls Chrome Web Store candidate
+
+commit 09055e4a57a7aad8d70b9b98a4265065d4d0f07a
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-18T14:39:02-05:00
+Subject: feat(research): support ANOC capture tickets in W extension
+
+commit 8e3186d79db42fe9156d0fb0a443943d279ce754
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-18T10:25:31-05:00
+Subject: CC-AI-09: add W public UHC PDF capture and verified cache bridge
+
+commit cfaf63cd7e044677076f3a14c81e2316635b89be
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-17T11:05:42-07:00
+Subject: CC-RTE-12: Preserve automatic pause ownership across reader gaps (#191)
+
+commit d6a802e27e53a11525d94ba0f0ae6cbe0531b224
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-17T10:32:25-07:00
+Subject: CC-RTE-12: allow Wayfinder when AllCalls is closed or logged out (#190)
+
+commit 23a729783be951f98f1b9add3ecad7317fcee4fc
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-17T08:25:07-07:00
+Subject: CC-RTE-12: one switch for automatic call protection and restoration (#189)
+
+commit eac6f56959de0796ec4e919a860d631394c87845
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-17T07:29:59-07:00
+Subject: CC-RTE-12: restore online controls and make protection status compact (#188)
+
+commit 3043f668a3181e31874df325e74ffab070d34ebd
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-17T06:58:49-07:00
+Subject: CC-RTE-12: Stabilize automatic protection and explain blocked calls (#187)
+
+commit bc262b81c4907249b3473dd56846d466859bdd8b
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-16T14:01:47-07:00
+Subject: CC-RTE-12 Automatically switch availability between AllCalls and Wayfinder (#175)
+
+commit 304eea6e6a88fb91891be86360de1786d9fac243
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-16T11:51:33-07:00
+Subject: CC-RTE-12 Brand call-mode extension with Wayfinder W icons (#167)
+
+commit b2dd8ed4ea365a915a5127dcb9ecb33179e2aa87
+Author: myacaexpress <164940369+myacaexpress@users.noreply.github.com>
+Date: 2026-10-16T10:02:25-07:00
+Subject: CC-RTE-08: AllCalls/MCP browser modes with fail-closed routing (#162)
+
+commit f1a9188e593a49b11f76efac625fcd240e34056a
+Author: Shawn Milner <82838706+shawnmilner@users.noreply.github.com>
+Date: 2026-09-22T08:25:26-07:00
+Subject: CC-SEC-01/02/04/10: deploy isolated AWS staging preview

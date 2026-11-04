@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Wayfinder Call Protection",
+  "description": "Automatically pause the other calling system while busy in AllCalls or Wayfinder. No audio or recording access.",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://allcalls.io/*",
+    "https://wayfindercontactcenter.com/*",
+    "https://www.wayfindercontactcenter.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://allcalls.io/*"
+      ],
+      "js": [
+        "detector.js",
+        "allcalls.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://wayfindercontactcenter.com/*",
+        "https://www.wayfindercontactcenter.com/*"
+      ],
+      "js": [
+        "wayfinder.js"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

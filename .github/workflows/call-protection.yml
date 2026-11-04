@@ -1,0 +1,64 @@
+name: Call Protection release candidate
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Test and package call protection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: extensions/call-protection
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require main for manual release candidates
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: test "$RELEASE_REF" = 'refs/heads/main'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: extensions/call-protection/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run build
+      - name: Record candidate provenance
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          record = {
+              'version': json.loads(Path('package.json').read_text())['version'],
+              'source_sha': os.environ['SOURCE_SHA'],
+              'run_id': os.environ['RUN_ID'],
+              'run_attempt': os.environ['RUN_ATTEMPT'],
+              'published': False,
+          }
+          Path('dist/provenance.json').write_text(json.dumps(record, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write(f"Call Protection {record['version']} candidate built from `{record['source_sha']}`. Tests passed. Not submitted or published to Chrome Web Store.\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: call-protection-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: |
+            extensions/call-protection/dist/*.zip
+            extensions/call-protection/dist/*.sha256
+            extensions/call-protection/dist/provenance.json
+          if-no-files-found: error
+          retention-days: 30
