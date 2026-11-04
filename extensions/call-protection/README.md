@@ -27,7 +27,7 @@ and `dist/unpacked/` for local synthetic acceptance testing. Load the latter, no
 ## Version and releases
 
 `package.json` is the single version source. The initial independent version is
-0.3.11, preserving the candidate from PR #212. Later version changes are independent
+0.3.11, preserving the candidate from [original application PR #212](https://github.com/myacaexpress/wayfinder-contact-center/pull/212). Later version changes are independent
 of `extensions/allcalls-mode/manifest.json` and website releases. Use
 `npm version patch --no-git-tag-version` (or minor/major) to update both package
 metadata and lockfile. Use three numeric components, each at most 65535.
@@ -49,7 +49,7 @@ acceptance with synthetic calls, privacy policy, reviewer access and store asset
 The original `extensions/allcalls-mode/` package continues to provide call
 protection plus Integrity and PDF research features. Its download, version and
 tests remain unchanged. This package starts with the reviewed call-protection
-logic from PR #212 and no longer reads, strips or imports the combined extension
+logic from [original application PR #212](https://github.com/myacaexpress/wayfinder-contact-center/pull/212) and no longer reads, strips or imports the combined extension
 during builds. Intentional fixes to shared call behavior must be reviewed and
 ported to both source trees; protocol changes must retain compatibility with
 installed older extension versions. Run both suites when changing that protocol.

@@ -9,3 +9,7 @@ Local checks on November 4, 2026 used Node 26.4.0 and Python 3.14.6. CI targets 
 - Root and standalone dependency installation with lifecycle scripts disabled reported zero known npm audit vulnerabilities at install time.
 
 No browser was launched; no extension installed/enabled; no real availability changed; no calls, staging tests, production tests, deployment or merge performed. Original application repository files are unchanged by this migration.
+
+## Hosted CI audit
+
+[Extension CI run 41867632919](https://github.com/myacaexpress/wayfinder-contact-center-extension/actions/runs/41867632919) passed both jobs for PR head e7523b070681151f1be3e11323b19d690c5ef452 using Node 22 / Python 3.12. Downloaded artifacts had valid JSON provenance referencing the tested PR integration commit 35f10398d85930a71f98355ff79f86ae45dbcd2d. CodeRabbit reported “Review skipped”; this is not a completed independent review. Subsequent migration-audit changes require their own CI result.

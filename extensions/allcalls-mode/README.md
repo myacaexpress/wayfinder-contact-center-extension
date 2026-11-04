@@ -1,4 +1,7 @@
-# Wayfinder Call Protection — automatic pilot (0.2.1)
+# Wayfinder Call Protection — combined developer extension (0.3.11)
+
+This document retains the feature history below. For this repository’s build commands,
+variant selection and current install paths, see the [workspace README](../../README.md).
 
 The installed extension automatically pairs exactly one AllCalls `/take-calls` tab
 with a signed-in production Wayfinder `/agent` tab in the same Chrome
