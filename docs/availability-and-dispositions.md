@@ -23,7 +23,7 @@ The repeated reported failure is Wayfinder remaining blocked so the agent cannot
 
 Existing extension suites simulate many component cases. The durable Off/lease fencing/Twilio restoration invariants require companion backend tests in the original repository, using mocks/fixtures and no real provider calls. They must not be represented as proven solely by passing the extension suite. Track pause owner, reason, last fresh observation, disable acknowledgement and pending restore intent in synthetic diagnostics without customer data.
 
-## Read-only AllCalls discovery status
+## Historical migration discovery status
 
 November 4: browser inventory exposes Chrome profile `myacaexpress.com`, but no AllCalls tab was present. Sign-in readiness is unverified. No AllCalls UI, current disposition options, save semantics, call IDs or export/API capability has been established in this inspection. Await the user-opened signed-in call history/reporting page; do not enable Take Calls to discover a wrap-up form.
 
@@ -39,3 +39,11 @@ Inspect only navigation labels, table schema, disposition filters and an empty/r
 6. Test entirely synthetic call IDs and outcomes: unsaved selection, successful save, failed save, retry, reload, duplicate tabs, account mismatch, revised disposition and missing stable ID. Reconcile fixture totals against Wayfinder's stored reports.
 
 This is a design contract, not an implemented disposition collector. No real disposition was read, submitted or synchronized during migration.
+
+## November 4 follow-up
+
+The user subsequently opened the master account and authorized implementation.
+See [manual report capture](allcalls-report-capture.md) for the verified report
+schema and draft implementation. The older migration discovery status above is
+historical. This draft imports explicit saved-report observations, not wrap-up
+clicks, and does not claim an unattended provider event feed.

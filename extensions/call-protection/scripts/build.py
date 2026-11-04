@@ -8,7 +8,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'src'
 FILES = ('background.js', 'detector.js', 'allcalls.js', 'wayfinder.js',
-         'popup.html', 'popup.css', 'popup.js', 'icons/icon-16.png',
+         'popup.html', 'popup.css', 'popup.js', 'report.html', 'report-tool.js', 'report-capture.js', 'icons/icon-16.png',
          'icons/icon-32.png', 'icons/icon-48.png', 'icons/icon-128.png')
 HOSTS = ['https://allcalls.io/*', 'https://wayfindercontactcenter.com/*',
          'https://www.wayfindercontactcenter.com/*']
