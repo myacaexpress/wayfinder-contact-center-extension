@@ -142,7 +142,12 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
  if(m.type==='status'&&!sender.tab&&sender.url===chrome.runtime.getURL('popup.html')){
    Promise.all([state(),settings()]).then(async([s,prefs])=>{
      const pairedTab=s.wayfinderTab;
-     const {wf}=await pair(s);
+     const readerFailed=s.issue==='allcalls_reader_unavailable';
+     const failedReaderTab=s.allcallsTab;
+     const {ac,wf}=await pair(s);
+     // Tab discovery cannot prove that a content reader recovered. Keep its
+     // last failure until a successful observation, but only for the same tab.
+     if(!s.issue&&readerFailed&&ac.length===1&&ac[0].id===failedReaderTab)s.issue='allcalls_reader_unavailable';
      const current=await chrome.tabs.query({active:true,lastFocusedWindow:true});
      const windows=[...new Set(wf.map(t=>t.windowId))];
      reply({...s,settings:prefs,workspaces:wf.map(t=>({id:t.id,title:new URL(t.url).pathname==='/manager'?'Manager board':'Agent workspace',current:current.some(c=>c.id===t.id),paired:t.id===pairedTab&&!!s.confirmedAt,window:windows.indexOf(t.windowId)+1,position:Number.isInteger(t.index)?t.index+1:null})),needsWorkspace:wf.length>0});

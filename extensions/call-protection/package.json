@@ -1,6 +1,6 @@
 {
   "name": "@wayfinder/call-protection",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "private": true,
   "description": "Standalone call-protection Chrome extension; no store publishing automation",
   "engines": {
