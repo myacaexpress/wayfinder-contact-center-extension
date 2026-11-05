@@ -46,10 +46,16 @@ with ZipFile(archive) as package:
         assert content == (source / relative).read_bytes(), relative
         assert content == (archive.parent / 'unpacked' / name).read_bytes(), relative
         assets[relative] = content
+    # Captured page fixtures exercise the reader but are never runtime assets.
+    assert not any(Path(name).parts[0] == 'fixtures' for name in assets), 'Test fixture packaged'
     expected = {str(path.relative_to(source)) for path in source.rglob('*')
-                if path.is_file() and (path.suffix in {'.js', '.mjs', '.html', '.css', '.json', '.png'}
+                if path.is_file() and path.relative_to(source).parts[0] != 'fixtures'
+                and (path.suffix in {'.js', '.mjs', '.html', '.css', '.json', '.png'}
                                        or path.name == 'README.md')}
-    assert set(assets) == expected, 'Missing runtime asset or unexpected packaged file'
+    assert set(assets) == expected, (
+        f'Missing runtime assets: {sorted(expected - set(assets))}; '
+        f'unexpected packaged files: {sorted(set(assets) - expected)}'
+    )
     for name, content in assets.items():
         refs = []
         if name.endswith('.html'):
