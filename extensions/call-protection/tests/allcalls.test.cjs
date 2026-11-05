@@ -2,8 +2,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
 const {JSDOM}=require('jsdom');
-function fixture(checked=false,label='Offline',extra='',controlLabel=''){
- const dom=new JSDOM(`<h2>Take Calls</h2><button role="switch" aria-checked="${checked}" aria-label="${controlLabel}"></button><div>${label}</div>${extra}`,{url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
+function fixture(checked=false,label='Offline',extra='',controlLabel='Turn inbound calls on'){
+ const dom=new JSDOM(`<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-checked="${checked}" aria-label="${controlLabel}"></button><div>${label}</div></section>${extra}`,{url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
  const w=dom.window;w.HTMLElement.prototype.getClientRects=()=>[{}];let listener,manual;
  const add=w.document.addEventListener.bind(w.document);
  w.document.addEventListener=(name,fn,...args)=>{if(name==='click')manual=fn;return add(name,fn,...args);};
@@ -29,7 +29,7 @@ test('stale commands and manual overrides cannot enable delivery',async()=>{
  assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);f.close();
 });
 test('ambiguous switches and unfamiliar labels stay unknown',()=>{
- const f=fixture(false,'Offline','<button role="switch" aria-checked="false"></button>');assert.equal(f.sent[0].observed,'unknown');f.close();
+ const f=fixture(false,'Offline','<button role="switch" aria-label="Turn inbound calls off" aria-checked="false"></button>');assert.equal(f.sent[0].observed,'unknown');f.close();
  const g=fixture(true,'New vendor wording');assert.equal(g.sent[0].observed,'unknown');g.close();
 });
 
@@ -69,7 +69,7 @@ test('prior document acknowledgement cannot clear a new manual choice',async()=>
  try{await Promise.resolve();await Promise.resolve();b.manual();const old=(await a.read()).allcalls_session;assert.equal((await b.ack(1,old)).accepted,false);assert.equal((await b.read()).manual_allcalls,true);}finally{a.close();b.close();}
 });
 
-for(const label of ['Offline – Inbound calls are off', "You're Off – No Calls Will Be Sent", 'Vendor wording changed'])test('structured Off survives wording: '+label,()=>{
+for(const label of ['Offline – Inbound calls are off', "You're Off – No Calls Will Be Sent"])test('structured Off survives wording: '+label,()=>{
  const f=fixture(false,label);try{assert.equal(f.sent[0].observed,'off');assert.equal(f.clicks(),0);}finally{f.close();}
 });
 test('inbound control is distinct from MedCare and Raw Calls campaign switches',async()=>{
@@ -82,11 +82,27 @@ test('busy state wins with renamed offline banner and extra campaign controls',(
 });
 
 test('legacy fallback never selects a campaign switch in settings',()=>{
- const f=fixture(false,'Offline','<h3>Call Type Settings</h3><div>MedCare Inbound Calls</div>');
+ const f=fixture(false,'Offline','<h4>Campaign settings</h4><div>MedCare Inbound Calls</div>','');
  try{assert.equal(f.sent[0].delivery,'unknown');assert.equal(f.clicks(),0);}finally{f.close();}
 });
 
 for(const busy of ['Ringing','Incoming call','Talking','On a call','Dispositioning','After-call work'])test('call starts after idle sample: recheck refuses Off for '+busy,async()=>{
  const f=fixture(true,'Waiting');
  try{assert.equal((await f.read()).observed,'waiting');f.busy(busy);assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+
+for(const evidence of ['<div> On   Call </div>','<div><svg></svg>Connected 0:42</div>','<button aria-label="End call"></button>','<div role="status">00:42</div>'])test('structural busy beats inbound Off: '+evidence,async()=>{
+ const f=fixture(false,'Offline – Inbound calls are off',evidence);
+ try{assert.equal((await f.read()).observed,'talking');assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('switch Off with unfamiliar status is not positive idle',()=>{
+ const f=fixture(false,'Vendor wording changed');try{assert.equal(f.sent[0].observed,'unknown');}finally{f.close();}
+});
+test('stray Waiting outside the inbound status section never authorizes a switch',async()=>{
+ const f=fixture(true,'Unrecognized status','<div>Waiting</div>');
+ try{assert.equal(f.sent[0].observed,'unknown');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('unlabelled sole campaign control cannot be read or clicked',async()=>{
+ const f=fixture(true,'Waiting','<div>MedCare Inbound Calls</div>','');
+ try{assert.equal(f.sent[0].delivery,'unknown');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
 });

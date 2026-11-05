@@ -54,7 +54,7 @@ test('an extension install or update re-injects every open AllCalls tab except d
 });
 
 function page(path){
- const dom=new JSDOM(`<h2>Take Calls</h2><button role="switch" aria-checked="false"></button><div>Offline</div>`,{url:'https://allcalls.io'+path,runScripts:'outside-only'});
+ const dom=new JSDOM(`<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-label="Turn inbound calls on" aria-checked="false"></button><div>Offline</div></section>`,{url:'https://allcalls.io'+path,runScripts:'outside-only'});
  const w=dom.window;w.HTMLElement.prototype.getClientRects=()=>[{}];
  const sent=[];let listeners=0,listener;w.chrome={runtime:{id:'ext',sendMessage:async msg=>{sent.push(msg);return{accepted:true};},onMessage:{addListener:fn=>{listeners++;listener=fn;}}}};
  const load=()=>{w.eval(readFileSync(__dirname+'/detector.js','utf8'));w.eval(readFileSync(__dirname+'/allcalls.js','utf8'));};

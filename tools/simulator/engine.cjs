@@ -18,7 +18,7 @@ class Simulator {
   clock() { const self=this; return class extends Date { constructor(...args){super(...(args.length?args:[self.now]));} static now(){return self.now;} }; }
   makeReader() {
     this.dom?.window.close(); this.readerPresent=true;
-    this.dom = new JSDOM('<h2>Take Calls</h2><button role="switch" aria-checked="true">Fake delivery</button><div id="label">Waiting</div>', {url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
+    this.dom = new JSDOM('<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-label="Turn inbound calls off" aria-checked="true">Fake delivery</button><div id="label">Waiting</div></section>', {url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
     const w=this.dom.window; w.Date=this.clock(); w.HTMLElement.prototype.getClientRects=()=>[{}];
     const blocked=()=>{throw new Error('Network disabled in simulator');};
     w.fetch=blocked; w.XMLHttpRequest=blocked; w.WebSocket=blocked; w.EventSource=blocked; w.navigator.sendBeacon=blocked;
