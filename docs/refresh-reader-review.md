@@ -27,3 +27,18 @@ Both readers now require an explicit action label such as `Answer call` or `Acce
 Regression tests first reproduced the false ringing from consent/invitation controls on the prior head. The fix preserves Waiting, Offline, and Unknown for unrelated buttons and verifies that a consent dialog does not block an otherwise valid idle switch command. Explicit call actions and call-labelled dialogs still block automatic switching in both extension variants.
 
 Local validation: 208 combined Node tests, 6 call-only package checks (including the extracted-ZIP behavior suite), and 10 isolated simulator tests passed under Node 24.22.1/Python 3.12.14. Both packages build; combined source equality, dependency closure and reproducibility pass. The 62 reader tests run in each variant, including packaged call-only code. Installed Chrome, current vendor busy DOMs and live calls remain untested. The user authorized merging the checked source before the requested Claude review; release remains held pending review and the existing integration safety boundary above.
+
+## Follow-up: manual choices require the active inbound control
+
+All-route reader injection exposed an older click-tracking edge: on a page without
+an inbound control, an ordinary button and the missing control both compared as
+null, incorrectly recording a manual availability change. Both readers now require
+the Take Calls route, a trusted Element target, and a non-null identified inbound
+control before recording a manual click. Login/profile clicks, missing controls,
+and stale controls outside Take Calls cannot prevent later automatic restoration.
+Actual trusted master-control clicks still preserve manual ownership.
+
+Five new synthetic recovery cases per variant cover those route/control states and
+nested master-button targets. These tests reproduced four failures before the fix.
+Installed Chrome and real calling acceptance remain subject to the release gates
+above; this change does not reload or click any live page.

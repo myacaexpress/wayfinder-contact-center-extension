@@ -42,7 +42,9 @@
   };
   let lastStatus='',lastSent=0,inFlight=false,manualGeneration=0,acknowledgedManual=0,lastCommand=0;
   document.addEventListener('click',event=>{
-    if(event.isTrusted&&event.target instanceof Element&&event.target.closest('button[role="switch"]')===switchControl())manualGeneration++;
+    if(!onPage()||!event.isTrusted||!(event.target instanceof Element))return;
+    const control=switchControl();
+    if(control&&event.target.closest('button[role="switch"]')===control)manualGeneration++;
   },true);
   function read(){
     if(!onPage())return {observed:'unknown',delivery:'unknown',allcalls_session:pageSession};

@@ -56,9 +56,11 @@ test('an extension install or update re-injects every open AllCalls tab except d
 function page(path){
  const dom=new JSDOM(`<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-label="Turn inbound calls on" aria-checked="false"></button><div>Offline</div></section>`,{url:'https://allcalls.io'+path,runScripts:'outside-only'});
  const w=dom.window;w.HTMLElement.prototype.getClientRects=()=>[{}];
+ let manual;const add=w.document.addEventListener.bind(w.document);
+ w.document.addEventListener=(name,fn,...args)=>{if(name==='click')manual=fn;return add(name,fn,...args);};
  const sent=[];let listeners=0,listener;w.chrome={runtime:{id:'ext',sendMessage:async msg=>{sent.push(msg);return{accepted:true};},onMessage:{addListener:fn=>{listeners++;listener=fn;}}}};
  const load=()=>{w.eval(readFileSync(__dirname+'/detector.js','utf8'));w.eval(readFileSync(__dirname+'/allcalls.js','utf8'));};
- return {w,sent,load,listeners:()=>listeners,send:(m)=>new Promise(resolve=>{if(listener(m,{id:"ext"},resolve)!==true)resolve(undefined);}),close:()=>w.close()};
+ return {w,sent,load,click:(target,isTrusted=true)=>manual({target,isTrusted}),listeners:()=>listeners,send:(m)=>new Promise(resolve=>{if(listener(m,{id:"ext"},resolve)!==true)resolve(undefined);}),close:()=>w.close()};
 }
 
 test('injecting the reader twice registers one listener and one sampler',()=>{
@@ -124,4 +126,38 @@ test('popup does not carry a failed reader warning onto a different AllCalls tab
  h.config.tabId=3;
  assert.equal((await h.status()).issue,'');
  assert.equal(h.state().issue,'allcalls_reader_unavailable','status read does not mutate saved evidence');
+});
+
+
+for(const path of ['/login','/profile','/take-calls'])test('unrelated trusted clicks without a master control do not become manual availability changes: '+path,async()=>{
+ const f=page(path),html=f.w.document.body.innerHTML;
+ f.w.document.body.innerHTML='<button id="continue">Continue</button>';f.load();
+ try{
+  f.click(f.w.document.getElementById('continue'));
+  assert.equal((await f.send({type:'read-observation'})).manual_generation,0);
+  f.w.history.pushState(null,'','/take-calls');f.w.document.body.innerHTML=html;
+  const reading=await f.send({type:'read-observation'});
+  assert.equal(reading.observed,'off');assert.equal(reading.manual_generation,0);assert.equal(reading.manual_allcalls,false);
+ }finally{f.close();}
+});
+test('trusted clicks outside Take Calls are ignored even when a stale master control remains',async()=>{
+ const f=page('/profile');f.load();
+ try{
+  f.click(f.w.document.querySelector('button'));
+  f.w.history.pushState(null,'','/take-calls');
+  const reading=await f.send({type:'read-observation'});
+  assert.equal(reading.observed,'off');assert.equal(reading.manual_generation,0);assert.equal(reading.manual_allcalls,false);
+ }finally{f.close();}
+});
+test('only trusted master-control clicks on Take Calls record a manual choice',async()=>{
+ const f=page('/take-calls');f.load();
+ try{
+  const master=f.w.document.querySelector('button');master.innerHTML='<span>Switch</span>';
+  const other=f.w.document.createElement('button');other.textContent='Continue';f.w.document.body.append(other);
+  f.click(other);f.click(master,false);
+  assert.equal((await f.send({type:'read-observation'})).manual_generation,0);
+  f.click(master.firstElementChild);
+  const reading=await f.send({type:'read-observation'});
+  assert.equal(reading.manual_generation,1);assert.equal(reading.manual_allcalls,true);
+ }finally{f.close();}
 });
