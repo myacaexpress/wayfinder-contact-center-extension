@@ -2,8 +2,8 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
 const {JSDOM}=require('jsdom');
-function fixture(checked=false,label='Offline',extra='',controlLabel='Turn inbound calls on'){
- const dom=new JSDOM(`<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-checked="${checked}" aria-label="${controlLabel}"></button><div>${label}</div></section>${extra}`,{url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
+function fixture(checked=false,label='Offline',extra='',controlLabel='Turn inbound calls on',html=null){
+ const dom=new JSDOM(html||`<h2>Take Calls</h2><section aria-label="Call status"><button role="switch" aria-checked="${checked}" aria-label="${controlLabel}"></button><div>${label}</div></section>${extra}`,{url:'https://allcalls.io/take-calls',runScripts:'outside-only'});
  const w=dom.window;w.HTMLElement.prototype.getClientRects=()=>[{}];let listener,manual;
  const add=w.document.addEventListener.bind(w.document);
  w.document.addEventListener=(name,fn,...args)=>{if(name==='click')manual=fn;return add(name,fn,...args);};
@@ -105,4 +105,20 @@ test('stray Waiting outside the inbound status section never authorizes a switch
 test('unlabelled sole campaign control cannot be read or clicked',async()=>{
  const f=fixture(true,'Waiting','<div>MedCare Inbound Calls</div>','');
  try{assert.equal(f.sent[0].delivery,'unknown');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+
+test('real sanitized Offline card produces idle without a synthetic aria-labelled section',()=>{
+ const f=fixture(false,'Offline','','',readFileSync(__dirname+'/fixtures/allcalls-offline-2026-11-05.html','utf8'));
+ try{assert.equal(f.sent[0].observed,'off');assert.equal(f.sent[0].delivery,'off');assert.equal(f.clicks(),0);}finally{f.close();}
+});
+for(const modal of ['<div role="dialog"><h2>Incoming call</h2><button>Accept</button><button>Decline</button></div>','<div role="dialog"><button aria-label="Answer call"></button></div>'])test('ringing dialog overrides underlying idle card: '+modal,async()=>{
+ const f=fixture(true,'Waiting',modal);try{assert.equal(f.sent[0].observed,'ringing');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('Call Status table header cannot turn application container into idle region',()=>{
+ const f=fixture(true,'','','', '<h2>Take Calls</h2><div><div><button role="switch" aria-label="Turn inbound calls off" aria-checked="true"></button></div><table><tr><th>Call Status</th></tr></table><div>Waiting</div></div>');
+ try{assert.equal(f.sent[0].observed,'unknown');}finally{f.close();}
+});
+test('external Offline banner is not evidence inside a missing status card',()=>{
+ const f=fixture(false,'','','','<h2>Take Calls</h2><div>Offline – Inbound calls are off</div><div><button role="switch" aria-label="Turn inbound calls on" aria-checked="false"></button></div>');
+ try{assert.equal(f.sent[0].observed,'unknown');}finally{f.close();}
 });

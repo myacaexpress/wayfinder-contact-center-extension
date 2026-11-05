@@ -100,6 +100,7 @@ class StorePackageTest(unittest.TestCase):
                 archive.extractall(extension)
             for script in extension.glob('*.js'):
                 subprocess.run(['node', '--check', str(script)], check=True, capture_output=True)
+            shutil.copytree(packager.ROOT / 'tests' / 'fixtures', extension / 'fixtures')
             tests = []
             for name in ('background', 'detector', 'allcalls', 'popup', 'reader-recovery'):
                 target = extension / f'{name}.test.cjs'
