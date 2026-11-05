@@ -17,15 +17,22 @@
     return heading&&controls.length===1&&['true','false'].includes(controls[0].getAttribute('aria-checked'))?controls[0]:null;
   };
   const statusRegion=control=>{
-    // Use only the smallest inbound control section, not queue cards elsewhere.
-    for(let el=control?.parentElement;el&&el!==document.body;el=el.parentElement){
-      if(normalize(el.getAttribute('aria-label'))==='call status'||
-         Array.from(el.querySelectorAll('label,span,div,p,h1,h2,h3,h4')).some(n=>visible(n)&&normalize(n.textContent)==='call status'))return el;
+    // Observed 2026-11-05: direct Call Status header, sibling row containing
+    // the switch + status text, three ancestors above the switch. Never widen
+    // to a history table or application-wide container.
+    let el=control?.parentElement;
+    for(let depth=1;el&&el!==document.body&&depth<=3;depth++,el=el.parentElement){
+      if(el.closest('table,nav,[role="dialog"]')||el.querySelector('table,nav,main'))continue;
+      if(normalize(el.getAttribute('aria-label'))==='call status')return el;
+      const children=Array.from(el.children);
+      if(children.length===2&&/^(DIV|LABEL|H[1-4]|SPAN|P)$/.test(children[0].tagName)&&
+         visible(children[0])&&normalize(children[0].textContent)==='call status'&&
+         children[1].contains(control))return el;
     }
     return null;
   };
-  const texts=scope=>Array.from(scope.querySelectorAll('[role="status"],[role="alert"],h1,h2,h3,button,span,div,p'))
-    .filter(el=>visible(el)&&!el.closest('table,nav,[role="dialog"]')&&el.textContent.length<120)
+  const texts=(scope,idle=false)=>Array.from(scope.querySelectorAll('[role="status"],[role="alert"],h1,h2,h3,button,span,div,p'))
+    .filter(el=>visible(el)&&!el.closest(idle?'table,nav,[role="dialog"]':'table,nav')&&el.textContent.length<120)
     .map(el=>normalize(el.textContent));
   const busyState=values=>{
     if(values.some(t=>/^(dispositioning|after[- ]call work|wrap[- ]?up)(?:$|[ :–-])/.test(t)))return 'wrap';
@@ -43,12 +50,27 @@
     const delivery=control?(control.getAttribute('aria-checked')==='true'?'on':'off'):'unknown';
     // Busy evidence is conservative; idle evidence must be in the status region.
     // No DOM text, timer contents or customer data leave this content script.
-    const region=statusRegion(control),statusLabels=region?texts(region):[];
+    const region=statusRegion(control),statusLabels=region?texts(region,true):[];
+    const ringingControls=Array.from(document.querySelectorAll('button,[role="button"]')).some(el=>{
+      if(!visible(el)||el.closest('table,nav'))return false;
+      const label=normalize(el.getAttribute('aria-label')||el.textContent);
+      if(/^(answer|accept|decline|reject) (?:incoming )?call$/.test(label))return true;
+      if(!/^(answer|accept|decline|reject)$/.test(label))return false;
+      // Generic consent/invitation actions are not call evidence. Require an
+      // incoming-call accessible name on the nearest dialog, never the page.
+      const dialog=el.closest('dialog,[role="dialog"],[role="alertdialog"]');
+      if(!dialog||!visible(dialog))return false;
+      // Referenced hidden nodes still contribute to the accessible name.
+      const labelledBy=(dialog.getAttribute('aria-labelledby')||'').split(/\s+/)
+        .map(id=>document.getElementById(id)).filter(Boolean)
+        .map(node=>node.textContent).join(' ');
+      return /^(incoming call|ringing)$/.test(normalize(labelledBy||dialog.getAttribute('aria-label')));
+    });
     const callControls=Array.from(document.querySelectorAll('button,[role="button"]')).filter(visible)
       .some(el=>/^(hang up|end call|disconnect call|mute(?: microphone)?|unmute(?: microphone)?|hold(?: call)?|resume call|transfer(?: call)?)$/.test(normalize(el.getAttribute('aria-label')||el.textContent)));
     const timer=Array.from(document.querySelectorAll('[role="status"],[role="alert"]')).filter(visible)
       .some(el=>/\b\d{1,2}:\d{2}\b/.test(el.textContent));
-    let observed=busyState(texts(document))||(callControls||timer?'talking':'unknown');
+    let observed=busyState(texts(document))||(ringingControls?'ringing':callControls||timer?'talking':'unknown');
     if(!['ringing','talking','wrap'].includes(observed)){
       const offline=statusLabels.some(t=>/^(offline(?: [–-] inbound calls are off)?|you're off [–-] no calls will be sent)$/.test(t));
       const waiting=statusLabels.some(t=>/^(waiting|online [–-] taking calls)$/.test(t));
