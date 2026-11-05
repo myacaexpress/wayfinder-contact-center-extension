@@ -51,8 +51,21 @@
     // Busy evidence is conservative; idle evidence must be in the status region.
     // No DOM text, timer contents or customer data leave this content script.
     const region=statusRegion(control),statusLabels=region?texts(region,true):[];
-    const ringingControls=Array.from(document.querySelectorAll('button,[role="button"]')).filter(visible)
-      .some(el=>/^(answer|accept|decline|reject)(?: (?:incoming )?call)?$/.test(normalize(el.getAttribute('aria-label')||el.textContent)));
+    const ringingControls=Array.from(document.querySelectorAll('button,[role="button"]')).some(el=>{
+      if(!visible(el)||el.closest('table,nav'))return false;
+      const label=normalize(el.getAttribute('aria-label')||el.textContent);
+      if(/^(answer|accept|decline|reject) (?:incoming )?call$/.test(label))return true;
+      if(!/^(answer|accept|decline|reject)$/.test(label))return false;
+      // Generic consent/invitation actions are not call evidence. Require an
+      // incoming-call accessible name on the nearest dialog, never the page.
+      const dialog=el.closest('dialog,[role="dialog"],[role="alertdialog"]');
+      if(!dialog||!visible(dialog))return false;
+      // Referenced hidden nodes still contribute to the accessible name.
+      const labelledBy=(dialog.getAttribute('aria-labelledby')||'').split(/\s+/)
+        .map(id=>document.getElementById(id)).filter(Boolean)
+        .map(node=>node.textContent).join(' ');
+      return /^(incoming call|ringing)$/.test(normalize(labelledBy||dialog.getAttribute('aria-label')));
+    });
     const callControls=Array.from(document.querySelectorAll('button,[role="button"]')).filter(visible)
       .some(el=>/^(hang up|end call|disconnect call|mute(?: microphone)?|unmute(?: microphone)?|hold(?: call)?|resume call|transfer(?: call)?)$/.test(normalize(el.getAttribute('aria-label')||el.textContent)));
     const timer=Array.from(document.querySelectorAll('[role="status"],[role="alert"]')).filter(visible)

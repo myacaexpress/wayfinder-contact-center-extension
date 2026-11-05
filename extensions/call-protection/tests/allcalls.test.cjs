@@ -122,3 +122,37 @@ test('external Offline banner is not evidence inside a missing status card',()=>
  const f=fixture(false,'','','','<h2>Take Calls</h2><div>Offline – Inbound calls are off</div><div><button role="switch" aria-label="Turn inbound calls on" aria-checked="false"></button></div>');
  try{assert.equal(f.sent[0].observed,'unknown');}finally{f.close();}
 });
+
+for(const markup of [
+ '<button>Answer</button>', '<button>Accept</button>', '<button>Decline</button>', '<button>Reject</button>',
+ '<div role="dialog" aria-label="Cookie consent"><button>Accept</button><button>Decline</button></div>',
+ '<div role="dialog"><h2>Team invitation</h2><button>Accept</button><button>Reject</button></div>',
+ '<div role="alertdialog" aria-label="Permission request"><div role="button" aria-label="Accept"></div></div>',
+ '<dialog open><button>Accept</button><button>Decline</button></dialog>',
+ '<div role="dialog" aria-label="Incoming callback preferences"><button>Accept</button></div>',
+ '<nav><button>Answer call</button></nav>',
+ '<table><tr><td><button>Reject call</button></td></tr></table>'
+])test('unrelated controls do not invent ringing: '+markup,async()=>{
+ for(const [checked,label,expected] of [[true,'Waiting','waiting'],[false,'Offline','off'],[true,'Unfamiliar','unknown']]){
+  const f=fixture(checked,label,markup);
+  try{assert.equal(f.sent[0].observed,expected);assert.equal((await f.read()).observed,expected);assert.equal(f.clicks(),0);}finally{f.close();}
+ }
+});
+test('consent controls leave verified idle switching available',async()=>{
+ const f=fixture(true,'Waiting','<div role="dialog" aria-label="Cookie consent"><button>Accept</button><button>Decline</button></div>');
+ try{assert.equal((await f.command('off')).accepted,true);assert.equal(f.clicks(),1);}finally{f.close();}
+});
+for(const label of ['Answer call','Accept call','Decline call','Reject call','Answer incoming call','Accept incoming call','Decline incoming call','Reject incoming call'])test('explicit call action remains ringing: '+label,async()=>{
+ const f=fixture(true,'Waiting',`<button aria-label="${label}"></button>`);
+ try{assert.equal(f.sent[0].observed,'ringing');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+for(const markup of [
+ '<div role="dialog" aria-label="Incoming call"><button>Accept</button><button>Decline</button></div>',
+ '<div role="alertdialog" aria-label="Ringing"><div role="button" aria-label="Answer"></div></div>',
+ '<dialog open aria-label="Incoming call"><button>Reject</button></dialog>',
+ '<div role="dialog" aria-labelledby="call-title"><h4 id="call-title">Incoming call</h4><button>Accept</button></div>',
+ '<span id="hidden-call-title" style="visibility:hidden">Incoming call</span><div role="dialog" aria-labelledby="hidden-call-title"><button>Accept</button><button>Decline</button></div>'
+])test('generic action requires a call-labelled dialog: '+markup,async()=>{
+ const f=fixture(false,'Offline',markup);
+ try{assert.equal(f.sent[0].observed,'ringing');assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
