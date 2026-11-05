@@ -10,8 +10,12 @@
   const visible=el=>!!(el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
   const switchControl=()=>{
     const controls=Array.from(document.querySelectorAll('button[role="switch"][aria-checked]')).filter(visible);
+    // Campaign switches must never be mistaken for the overall inbound control.
+    const inbound=controls.filter(el=>/^Turn inbound calls (on|off)$/i.test(el.getAttribute('aria-label')||''));
+    const configuring=Array.from(document.querySelectorAll('h1,h2,h3')).some(el=>visible(el)&&el.textContent.trim()==='Call Type Settings');
+    const candidates=inbound.length?inbound:configuring?[]:controls;
     const heading=Array.from(document.querySelectorAll('h1,h2')).some(el=>visible(el)&&el.textContent.trim()==='Take Calls');
-    return heading&&controls.length===1&&['true','false'].includes(controls[0].getAttribute('aria-checked'))?controls[0]:null;
+    return heading&&candidates.length===1&&['true','false'].includes(candidates[0].getAttribute('aria-checked'))?candidates[0]:null;
   };
   const labels=['Ringing','Incoming call','Talking','On a call','Dispositioning','After-call work','Waiting','Online - Taking Calls','Offline'];
   let lastStatus='',lastSent=0,inFlight=false,manualGeneration=0,acknowledgedManual=0,lastCommand=0;
@@ -25,9 +29,8 @@
     // Compare fixed labels locally; never transmit page text or caller data.
     const statusLabels=Array.from(document.querySelectorAll('[role="status"],[role="alert"],h1,h2,h3,button,span,div,p')).filter(el=>visible(el)&&!el.closest('table')&&el.children.length===0).map(el=>el.textContent.trim()).filter(text=>labels.includes(text));
     let observed=globalThis.wayfinderAllCallsDetect({statuses:statusLabels,busyLabels:statusLabels});
-    if(!control)observed='unknown';
-    else if(!['ringing','talking','wrap'].includes(observed)){
-      observed=delivery==='off'&&statusLabels.includes('Offline')?'off':delivery==='on'&&(statusLabels.includes('Waiting')||statusLabels.includes('Online - Taking Calls'))?'waiting':'unknown';
+    if(!['ringing','talking','wrap'].includes(observed)){
+      observed=delivery==='off'?'off':delivery==='on'&&(statusLabels.includes('Waiting')||statusLabels.includes('Online - Taking Calls'))?'waiting':'unknown';
     }
     return {observed,delivery,allcalls_session:pageSession};
   }
