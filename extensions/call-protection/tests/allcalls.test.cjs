@@ -156,3 +156,23 @@ for(const markup of [
  const f=fixture(false,'Offline',markup);
  try{assert.equal(f.sent[0].observed,'ringing');assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
 });
+
+function onlineFixture(extra=''){
+ return fixture(true,'','','',readFileSync(__dirname+'/fixtures/allcalls-online-2026-11-06.html','utf8')+extra);
+}
+test('captured Online card is waiting and confirms the requested OFF readback',async()=>{
+ const f=onlineFixture();
+ try{assert.equal(f.sent[0].observed,'waiting');assert.equal(f.sent[0].delivery,'on');assert.equal(f.clicks(),0);assert.equal((await f.command('off')).accepted,true);assert.equal(f.clicks(),1);assert.equal((await f.read()).delivery,'off');assert.equal((await f.command('off')).accepted,true);assert.equal(f.clicks(),1);}finally{f.close();}
+});
+for(const [evidence,state] of [['<div role="dialog"><h2>Incoming call</h2></div>','ringing'],['<button>End call</button>','talking'],['<div>Wrap-up</div>','wrap']])test('busy evidence overrides captured Online wording: '+state,async()=>{
+ const f=onlineFixture(evidence);try{assert.equal((await f.read()).observed,state);assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('call beginning after captured Online sample prevents OFF',async()=>{
+ const f=onlineFixture();try{assert.equal((await f.read()).observed,'waiting');f.busy('Talking');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('new Online wording outside status card cannot authorize OFF',async()=>{
+ const f=fixture(true,'Unrecognized status','<div>Online – Waiting for inbound calls</div>');try{assert.equal((await f.read()).observed,'unknown');assert.equal((await f.command('off')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
+test('Online wording with an Off switch is inconsistent, not idle permission',async()=>{
+ const f=fixture(false,'Online – Waiting for inbound calls');try{assert.equal((await f.read()).observed,'unknown');assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
+});
