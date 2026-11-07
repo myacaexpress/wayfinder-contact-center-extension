@@ -42,3 +42,9 @@ Five new synthetic recovery cases per variant cover those route/control states a
 nested master-button targets. These tests reproduced four failures before the fix.
 Installed Chrome and real calling acceptance remain subject to the release gates
 above; this change does not reload or click any live page.
+
+## Live Online incident: November 6
+
+While Wayfinder displayed an active test call, the AllCalls master inbound switch was On and its own bounded card read `Online – Waiting for inbound calls`. The extension sampled Unknown and refused OFF with `allcalls_unknown`; fresh sync/sample timestamps ruled out a stale tab as the sole cause. The old expression accepted only Waiting or Online – Taking calls. The sanitized captured Online card now exercises the actual reader in both variants and extracted call-only package.
+
+The fix recognizes that exact additional idle wording only inside the existing bounded card and only with the unique main inbound switch On. Busy evidence still overrides it; command-time rechecks and actual switch readback remain required. Tests reproduce the prior Unknown failure, verify confirmed OFF/idempotency, and reject busy transitions, external banners and contradictory switch state. This does not prove vendor-side call timing or installed-browser success. No live switches, installs or deployments were performed. Canonical source includes unrelated manual report capture; do not substitute its package for the safety-only application distribution without explicit review.

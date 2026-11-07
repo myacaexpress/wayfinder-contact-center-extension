@@ -75,7 +75,7 @@
     let observed=busyState(texts(document))||(ringingControls?'ringing':callControls||timer?'talking':'unknown');
     if(!['ringing','talking','wrap'].includes(observed)){
       const offline=statusLabels.some(t=>/^(offline(?: [–-] inbound calls are off)?|you're off [–-] no calls will be sent)$/.test(t));
-      const waiting=statusLabels.some(t=>/^(waiting|online [–-] taking calls)$/.test(t));
+      const waiting=statusLabels.some(t=>/^(waiting|online [–-] (?:taking calls|waiting for inbound calls))$/.test(t));
       observed=delivery==='off'&&offline?'off':delivery==='on'&&waiting?'waiting':'unknown';
     }
     return {observed,delivery,allcalls_session:pageSession};
