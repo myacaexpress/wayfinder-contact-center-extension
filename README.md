@@ -9,11 +9,11 @@ Chrome extensions for coordinating AllCalls and Wayfinder availability. Both exi
 | Call protection | `extensions/call-protection/src` | Availability coordination only | `extensions/call-protection/dist/unpacked` |
 | Combined developer | `extensions/allcalls-mode` | Call protection, Integrity Verify/health imports, local public-PDF capture | `dist/combined/unpacked/wayfinder-call-modes` |
 
-**Never enable both variants in the same Chrome profile.** They contain duplicate availability controllers. Both variants on `main` identify as version 0.3.14; check the variant and artifact path, not only the version or display name. Integrity remains deferred for the focused availability project; it is retained here for existing users.
+**Never enable both variants in the same Chrome profile.** They contain duplicate availability controllers. Both variants on this branch identify as version 0.3.17; check the variant and artifact path, not only the version or display name. Version labels are not provenance: verify the source SHA and the ZIP SHA-256. Integrity remains deferred for the focused availability project; it is retained here for existing users.
 
-**Release status:** Version 0.3.13 is the Chrome Trusted Testers release. It includes AllCalls reader recovery and works with the [Wayfinder server restoration fix](https://github.com/myacaexpress/wayfinder-contact-center/pull/482). See the [0.3.13 release](https://github.com/myacaexpress/wayfinder-contact-center-extension/releases/tag/v0.3.13).
+**Release status:** Version 0.3.13 was the first Chrome Trusted Testers release ([v0.3.13](https://github.com/myacaexpress/wayfinder-contact-center-extension/releases/tag/v0.3.13)). A build labelled 0.3.16 was reported published to Trusted Testers on 2026-11-07 (store item `jdejhleemlhklmenobmpgocpnefabbpi`); it was assembled outside this repository and no branch here reproduces it, so treat its contents as unverified. 0.3.17 is the first version whose source is in this repository: `main` 8a61a91 plus the Online-waiting reader fix (PR #9) plus the diagnostics trace described in [docs/diagnostics-0.3.17.md](docs/diagnostics-0.3.17.md). It has not been uploaded, installed or live-tested.
 
-The unpublished 0.3.14 build from `main` includes both the reader warning fix and manual report capture. For a controlled test of the warning fix alone, use the separate call-protection build from [commit aff8de7](https://github.com/myacaexpress/wayfinder-contact-center-extension/commit/aff8de71656b66cfb471f21f9e6bef60d59140c9). Both builds display the same version.
+The 0.3.14 build from `main` includes the reader warning fix and manual report capture. For a controlled test of the warning fix alone, use the separate call-protection build from [commit aff8de7](https://github.com/myacaexpress/wayfinder-contact-center-extension/commit/aff8de71656b66cfb471f21f9e6bef60d59140c9).
 
 ## Local non-live checks
 
@@ -29,7 +29,7 @@ npm run build
 Tests use synthetic DOMs and mocked Chrome APIs. They do not open Chrome, call vendor services, enable delivery, or place calls. Build outputs are ignored by Git. Call-only packaging tests exercise the extracted ZIP, not just source files. The two dependency locks are intentional: call protection remains independently testable and versioned.
 
 Combined ZIP: `dist/combined/wayfinder-call-modes.zip` (historical nested folder layout preserved).
-Call-only ZIP: `extensions/call-protection/dist/wayfinder-call-protection-0.3.14.zip`.
+Call-only ZIP: `extensions/call-protection/dist/wayfinder-call-protection-0.3.17.zip`.
 Both builders emit SHA-256 files. CI records source/run provenance and builds separate artifacts. It has no store upload, installation, application deployment or live-test step.
 
 See [testing without real calls](docs/safe-testing.md) for the safe simulated workflow and its limits.

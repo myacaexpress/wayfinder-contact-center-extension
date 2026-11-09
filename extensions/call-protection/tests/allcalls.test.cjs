@@ -176,3 +176,46 @@ test('new Online wording outside status card cannot authorize OFF',async()=>{
 test('Online wording with an Off switch is inconsistent, not idle permission',async()=>{
  const f=fixture(false,'Online – Waiting for inbound calls');try{assert.equal((await f.read()).observed,'unknown');assert.equal((await f.command('on')).accepted,false);assert.equal(f.clicks(),0);}finally{f.close();}
 });
+
+// Diagnostics: every observation and every refused switch names an enumerated
+// cause so an unconfirmed pause can be explained without a live call.
+test('observations carry an enumerated evidence cause and never page text',()=>{
+ const cases=[
+  [()=>fixture(),'off','idle_label'],
+  [()=>onlineFixture(),'waiting','idle_label'],
+  [()=>fixture(false,'Offline','<div>Talking</div>'),'talking','busy_text'],
+  [()=>fixture(false,'Offline','<button>End call</button>'),'talking','call_controls'],
+  [()=>fixture(false,'Offline','<div role="dialog" aria-label="Incoming call"><button>Accept</button></div>'),'ringing','ringing_controls'],
+  [()=>fixture(true,'New vendor wording'),'unknown','no_idle_label'],
+  [()=>fixture(true,'Offline'),'unknown','label_switch_mismatch'],
+  [()=>fixture(false,'Online – Waiting for inbound calls'),'unknown','label_switch_mismatch'],
+  [()=>fixture(false,'Offline','<button role="switch" aria-label="Turn inbound calls off" aria-checked="false"></button>'),'unknown','multiple_switches'],
+  [()=>fixture(false,'Offline','','Campaign toggle'),'unknown','no_switch'],
+  [()=>fixture(true,'','','','<h2>Take Calls</h2><button role="switch" aria-checked="true" aria-label="Turn inbound calls off"></button><div>Waiting</div>'),'unknown','no_status_region'],
+  [()=>fixture(true,'','','','<h2>Other page</h2><section aria-label="Call status"><button role="switch" aria-checked="true" aria-label="Turn inbound calls off"></button><div>Waiting</div></section>'),'unknown','no_heading'],
+ ];
+ for(const [make,observed,cause] of cases){
+  const f=make();
+  try{
+   assert.equal(f.sent[0].observed,observed,cause);assert.equal(f.sent[0].cause,cause);
+   assert.match(f.sent[0].cause,/^[a-z_]+$/);
+   assert.ok(!JSON.stringify(f.sent[0]).includes('Waiting'),'no label text leaves the reader');
+  }finally{f.close();}
+ }
+});
+test('refused and confirmed switch commands name their reason',async()=>{
+ const busy=fixture(true,'Waiting','<div>Talking</div>');
+ try{assert.deepEqual(await busy.command('off'),{accepted:false,reason:'observed_talking'});assert.equal(busy.clicks(),0);}finally{busy.close();}
+ const vague=fixture(true,'New vendor wording');
+ try{assert.deepEqual(await vague.command('off'),{accepted:false,reason:'observed_unknown:no_idle_label'});assert.equal(vague.clicks(),0);}finally{vague.close();}
+ const manual=fixture();
+ try{manual.manual();assert.deepEqual(await manual.command('on'),{accepted:false,reason:'manual_override_pending'});assert.equal(manual.clicks(),0);}finally{manual.close();}
+ const ok=fixture(true,'Waiting');
+ try{
+  assert.deepEqual(await ok.command('off'),{accepted:true,reason:'clicked_confirmed'});assert.equal(ok.clicks(),1);
+  assert.deepEqual(await ok.command('off'),{accepted:true,reason:'already_off'});assert.equal(ok.clicks(),1);
+  assert.deepEqual(await ok.command('off',Date.now(),'other-session'),{accepted:false,reason:'session_mismatch'});
+ }finally{ok.close();}
+ const missing=fixture(false,'Offline','','Campaign toggle');
+ try{assert.deepEqual(await missing.command('on'),{accepted:false,reason:'no_switch'});assert.equal(missing.clicks(),0);}finally{missing.close();}
+});

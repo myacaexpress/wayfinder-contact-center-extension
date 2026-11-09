@@ -6,7 +6,7 @@ const {webcrypto}=require('node:crypto');
 function harness(initialSettings={enabled:true}){
  let listener,stored={},local=initialSettings?{settings:initialSettings}:{};const sent=[];
  const config={ac:[{id:1,url:'https://allcalls.io/take-calls'}],wf:[{id:2,url:'https://www.wayfindercontactcenter.com/agent'}],target:'none',sample:{observed:'off',delivery:'off',measured_at:Math.floor(Date.now()/1000)}};
- const chrome={runtime:{id:'ext',getURL:p=>'chrome-extension://ext/'+p,onMessage:{addListener:fn=>listener=fn}},storage:{session:{get:async()=>stored,set:async value=>{stored=structuredClone(value);}},local:{get:async()=>local,set:async value=>{local={...local,...structuredClone(value)};}}},tabs:{query:async q=>q.active?config.wf.filter(t=>t.active):typeof q.url==='string'?config.ac:config.wf,sendMessage:async(id,msg)=>{sent.push({id,msg});if(config.hold&&msg.type==='wayfinder-request')await config.hold;if(msg.body?.action==='configure'){config.enabled=msg.body.enabled;config.returnAfterWrap=msg.body.enabled;}if(config.fail&&msg.type==='wayfinder-request')throw new Error('Synthetic connection failure');return msg.type==='read-observation'?config.sample:msg.type==='set-delivery'?{accepted:true}:{enabled:config.enabled!==false,return_after_wrap:config.returnAfterWrap===true,agent_id:'agent',mode:'auto',mcp_allowed:true,allcalls_target:config.target};},update:async(id,values)=>{sent.push({focus:id,values});},onRemoved:{addListener:()=>{}}},windows:{update:async(id,values)=>{sent.push({window:id,values});}}};
+ const chrome={runtime:{id:'ext',getURL:p=>'chrome-extension://ext/'+p,onMessage:{addListener:fn=>listener=fn}},storage:{session:{get:async()=>stored,set:async value=>{stored={...stored,...structuredClone(value)};}},local:{get:async()=>local,set:async value=>{local={...local,...structuredClone(value)};}}},tabs:{query:async q=>q.active?config.wf.filter(t=>t.active):typeof q.url==='string'?config.ac:config.wf,sendMessage:async(id,msg)=>{sent.push({id,msg});if(config.hold&&msg.type==='wayfinder-request')await config.hold;if(msg.body?.action==='configure'){config.enabled=msg.body.enabled;config.returnAfterWrap=msg.body.enabled;}if(config.fail&&msg.type==='wayfinder-request')throw new Error('Synthetic connection failure');return msg.type==='read-observation'?config.sample:msg.type==='set-delivery'?(config.switchReply||{accepted:true}):{enabled:config.enabled!==false,return_after_wrap:config.returnAfterWrap===true,agent_id:'agent',mode:'auto',mcp_allowed:true,allcalls_target:config.target};},update:async(id,values)=>{sent.push({focus:id,values});},onRemoved:{addListener:()=>{}}},windows:{update:async(id,values)=>{sent.push({window:id,values});}}};
  vm.runInNewContext(readFileSync(__dirname+'/background.js','utf8').replace(/^import .*\ninstallIntegrity(?:Verify|Health)Bridge\(chrome\);\n/gm,''),{chrome,crypto:webcrypto,Date,URL,Promise,Error,Number,setTimeout,clearTimeout});
  const sender={id:'ext',url:'chrome-extension://ext/popup.html'};
  return {send:(m,s=sender)=>new Promise(resolve=>{if(listener(m,s,resolve)!==true)resolve({});}),sent,state:()=>stored.state,config};
@@ -217,4 +217,44 @@ test('a suggested replacement tab is not labeled as a confirmed pairing',async()
  const h=harness();await h.send(observation(),agent);
  h.config.wf=[{id:9,url:'https://wayfindercontactcenter.com/agent',active:true}];
  const status=await h.send({type:'status'});assert.equal(status.wayfinderTab,9);assert.equal(status.workspaces[0].paired,false);
+});
+
+// Diagnostics trace and support bundle.
+test('trace records sync, switch outcome and reader cause without payloads or identities',async()=>{
+ const h=harness();h.config.target='off';h.config.switchReply={accepted:false,reason:'observed_unknown:no_idle_label'};
+ await h.send({...observation(),cause:'idle_label'},agent);
+ const kinds=(await h.send({type:'diagnostics'})).trace.map(e=>e.k);
+ assert.deepEqual(kinds.filter(k=>k!=='worker_start'),['observation','sync','sync_result','switch']);
+ const bundle=await h.send({type:'diagnostics'});
+ const sw=bundle.trace.find(e=>e.k==='switch');
+ assert.equal(sw.target,'off');assert.equal(sw.accepted,false);assert.equal(sw.detail,'observed_unknown:no_idle_label');assert.ok(Number.isInteger(sw.ms));
+ assert.equal(bundle.trace.find(e=>e.k==='observation').cause,'idle_label');
+ assert.equal(bundle.state.lastSwitch.detail,'observed_unknown:no_idle_label');
+ assert.match(h.state().error,/not confirmed \(observed_unknown:no_idle_label\)/);
+ assert.equal(bundle.state.cause,'idle_label');
+ const text=JSON.stringify(bundle);
+ assert.ok(!text.includes('agent_id')&&!text.includes('clientId')&&!text.includes('identity'),'bundle excludes identities');
+ assert.equal(bundle.version,'unknown');assert.equal(bundle.extension_id,'ext');
+});
+test('trace is bounded, records transitions only, and is popup-only',async()=>{
+ const h=harness();
+ for(let i=0;i<100;i++)await h.send({...observation(),observed:i%2?'waiting':'off',delivery:i%2?'on':'off',cause:'idle_label'},agent);
+ const bundle=await h.send({type:'diagnostics'});
+ assert.ok(bundle.trace.length<=80);assert.equal(bundle.trace.at(-1).k,'sync_result');
+ const steady=harness();for(let i=0;i<5;i++)await steady.send({...observation(),cause:'idle_label'},agent);
+ assert.equal((await steady.send({type:'diagnostics'})).trace.filter(e=>e.k==='observation').length,1);
+ assert.deepEqual(await h.send({type:'diagnostics'},agent),{});
+ assert.deepEqual(await h.send({type:'diagnostics'},{id:'other',url:'chrome-extension://ext/popup.html'}),{});
+});
+test('a transport failure on the switch command is traced and still fails the sync',async()=>{
+ const h=harness();h.config.target='off';
+ h.config.switchReply=Promise.reject(new Error('Calling tab did not respond within 12 seconds. Refresh that tab.'));
+ h.config.switchReply.catch(()=>{});
+ await h.send(observation(),agent);
+ const bundle=await h.send({type:'diagnostics'});
+ assert.equal(bundle.trace.find(e=>e.k==='switch').detail,'transport');
+ assert.match(bundle.state.lastSwitch.detail,/^transport:Calling tab did not respond/);
+ assert.equal(bundle.state.lastSwitch.confirmed,false);
+ assert.equal(h.state().result,null);assert.match(h.state().error,/did not respond/);
+ assert.equal(bundle.trace.find(e=>e.k==='sync_result'&&e.ok===false).error.startsWith('Calling tab'),true);
 });

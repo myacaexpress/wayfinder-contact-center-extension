@@ -1,7 +1,7 @@
 # Wayfinder Call Protection — unlisted store candidate
 
-Status: 0.3.12 review candidate; NOT submitted or published. No install link exists yet. Backend recovery companion and installed acceptance remain pending.
-Version: independently managed in `extensions/call-protection/package.json` (initially 0.3.11). Production application activation/settings are unchanged.
+Status: 0.3.17 candidate; NOT uploaded, submitted or published. Store item `jdejhleemlhklmenobmpgocpnefabbpi` exists from earlier Trusted Testers uploads (0.3.13 from this repository; a 0.3.16 assembled outside it). Chrome Web Store rejects a re-upload of an existing version number, so the next upload must be 0.3.17 or later. Installed-Chrome acceptance with a real pause and restore remains pending for every version.
+Version: independently managed in `extensions/call-protection/package.json`. Production application activation/settings are unchanged.
 
 ## Build and verification
 

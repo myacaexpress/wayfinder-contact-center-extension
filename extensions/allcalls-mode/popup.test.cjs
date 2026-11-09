@@ -83,3 +83,29 @@ test('current workspace is selected with recognizable position and jump sends it
  }
  close();
 });
+
+test('popup shows the installed version, the AllCalls evidence cause and the switch detail',async()=>{
+ const text=await render({version:'0.3.17',settings:{enabled:true},observed:'unknown',cause:'no_idle_label',delivery:'on',confirmedAt:Date.now(),result:{mcp_allowed:false,diagnostics:{reason:'allcalls_unknown',reason_text:'AllCalls status is not readable.'}},lastSwitch:{target:'off',confirmed:false,at:Date.now(),reason:'wayfinder_busy',detail:'observed_unknown:no_idle_label'}});
+ assert.match(text,/Extension version 0\.3\.17/);assert.match(text,/AllCalls evidenceno_idle_label/);
+ assert.match(text,/OFF · not confirmed/);assert.match(text,/Detail: observed_unknown:no_idle_label/);
+});
+test('copy diagnostics requests the bundle, shows it read-only and reports clipboard state',async(t)=>{
+ const dom=new JSDOM(readFileSync(__dirname+'/popup.html','utf8'),{runScripts:'outside-only'});
+ t.after(()=>dom.window.close());
+ const requests=[];const bundle={version:'0.3.17',extension_id:'ext',state:{observed:'off'},trace:[{t:1,k:'worker_start'},{t:2,k:'sync'}]};
+ dom.window.chrome={runtime:{sendMessage:async m=>{requests.push(m);return m.type==='status'?{settings:{enabled:true}}:bundle;}}};
+ const written=[];Object.defineProperty(dom.window.navigator,'clipboard',{value:{writeText:async text=>{written.push(text);}},configurable:true});
+ dom.window.eval(readFileSync(__dirname+'/popup.js','utf8'));await new Promise(r=>setImmediate(r));
+ const doc=dom.window.document;assert.equal(doc.getElementById('diagnostics-text').hidden,true);
+ doc.getElementById('copy-diagnostics').click();for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));
+ assert.equal(requests.filter(m=>m.type==='diagnostics').length,1);
+ assert.equal(requests.some(m=>m.type==='configure'||m.type==='set-delivery'),false,'diagnostics never mutates');
+ assert.equal(doc.getElementById('diagnostics-text').hidden,false);
+ assert.deepEqual(JSON.parse(doc.getElementById('diagnostics-text').value),bundle);
+ assert.deepEqual(JSON.parse(written[0]),bundle);
+ assert.match(doc.getElementById('copy-message').textContent,/Copied 2 trace entries/);
+ Object.defineProperty(dom.window.navigator,'clipboard',{value:{writeText:async()=>{throw new Error('denied');}},configurable:true});
+ doc.getElementById('copy-diagnostics').click();for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));
+ assert.match(doc.getElementById('copy-message').textContent,/Clipboard blocked/);
+ assert.deepEqual(JSON.parse(doc.getElementById('diagnostics-text').value),bundle);
+});
