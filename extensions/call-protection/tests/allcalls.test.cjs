@@ -204,18 +204,20 @@ test('observations carry an enumerated evidence cause and never page text',()=>{
  }
 });
 test('refused and confirmed switch commands name their reason',async()=>{
+ // Replies originate in the jsdom realm; compare values, not prototypes.
+ const plain=r=>({accepted:r.accepted,reason:r.reason});
  const busy=fixture(true,'Waiting','<div>Talking</div>');
- try{assert.deepEqual(await busy.command('off'),{accepted:false,reason:'observed_talking'});assert.equal(busy.clicks(),0);}finally{busy.close();}
+ try{assert.deepEqual(plain(await busy.command('off')),{accepted:false,reason:'observed_talking'});assert.equal(busy.clicks(),0);}finally{busy.close();}
  const vague=fixture(true,'New vendor wording');
- try{assert.deepEqual(await vague.command('off'),{accepted:false,reason:'observed_unknown:no_idle_label'});assert.equal(vague.clicks(),0);}finally{vague.close();}
+ try{assert.deepEqual(plain(await vague.command('off')),{accepted:false,reason:'observed_unknown:no_idle_label'});assert.equal(vague.clicks(),0);}finally{vague.close();}
  const manual=fixture();
- try{manual.manual();assert.deepEqual(await manual.command('on'),{accepted:false,reason:'manual_override_pending'});assert.equal(manual.clicks(),0);}finally{manual.close();}
+ try{manual.manual();assert.deepEqual(plain(await manual.command('on')),{accepted:false,reason:'manual_override_pending'});assert.equal(manual.clicks(),0);}finally{manual.close();}
  const ok=fixture(true,'Waiting');
  try{
-  assert.deepEqual(await ok.command('off'),{accepted:true,reason:'clicked_confirmed'});assert.equal(ok.clicks(),1);
-  assert.deepEqual(await ok.command('off'),{accepted:true,reason:'already_off'});assert.equal(ok.clicks(),1);
-  assert.deepEqual(await ok.command('off',Date.now(),'other-session'),{accepted:false,reason:'session_mismatch'});
+  assert.deepEqual(plain(await ok.command('off')),{accepted:true,reason:'clicked_confirmed'});assert.equal(ok.clicks(),1);
+  assert.deepEqual(plain(await ok.command('off')),{accepted:true,reason:'already_off'});assert.equal(ok.clicks(),1);
+  assert.deepEqual(plain(await ok.command('off',Date.now(),'other-session')),{accepted:false,reason:'session_mismatch'});
  }finally{ok.close();}
  const missing=fixture(false,'Offline','','Campaign toggle');
- try{assert.deepEqual(await missing.command('on'),{accepted:false,reason:'no_switch'});assert.equal(missing.clicks(),0);}finally{missing.close();}
+ try{assert.deepEqual(plain(await missing.command('on')),{accepted:false,reason:'no_switch'});assert.equal(missing.clicks(),0);}finally{missing.close();}
 });
