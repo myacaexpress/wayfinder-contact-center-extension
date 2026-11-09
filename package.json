@@ -1,6 +1,6 @@
 {
   "name": "@wayfinder/contact-center-extension",
-  "version": "0.3.14",
+  "version": "0.3.17",
   "private": true,
   "description": "Wayfinder Chrome extension workspace: call-only and combined variants",
   "engines": {

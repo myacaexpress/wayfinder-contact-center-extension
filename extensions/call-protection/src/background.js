@@ -4,6 +4,22 @@ const serial=fn=>{const task=queue.then(fn);queue=task.catch(()=>{});return task
 const state=async()=>({...((await chrome.storage.session.get('state')).state||{}),...((await chrome.storage.local.get('lastSwitch')).lastSwitch?{lastSwitch:(await chrome.storage.local.get('lastSwitch')).lastSwitch}:{})});
 const save=async value=>{if(value.lastSwitch)await chrome.storage.local.set({lastSwitch:value.lastSwitch});await chrome.storage.session.set({state:value});};
 const settings=async()=>({enabled:false,returnAfterWrap:false,...(await chrome.storage.local.get('settings')).settings});
+// Diagnostics trace: a bounded ring of enumerated events in session storage so
+// an unconfirmed pause or a stuck Unknown can be explained after the fact from
+// the popup ("Copy diagnostics") without reproducing it on a live call. Entries
+// hold state tokens, reasons, tab ids and latencies only: never DOM text, caller
+// data, auth material or page URLs beyond the fixed hosts already matched.
+const TRACE_LIMIT=80;
+const VERSION=(()=>{try{return chrome.runtime.getManifest().version;}catch{return 'unknown';}})();
+const trace=async(kind,data={})=>{
+ try{
+  const entries=(await chrome.storage.session.get('trace')).trace||[];
+  entries.push({t:Date.now(),k:kind,...data});
+  await chrome.storage.session.set({trace:entries.slice(-TRACE_LIMIT)});
+ }catch{}
+};
+const errorToken=error=>String(error?.message||error||'error').slice(0,160);
+void trace('worker_start',{version:VERSION});
 const activeOrPending=async()=>{const prefs=await settings();return prefs.enabled||prefs.pending;};
 const ownPage=url=>{try{const u=new URL(url);return u.origin==='https://allcalls.io'&&u.pathname==='/take-calls';}catch{return false;}};
 const wfPage=url=>{try{const u=new URL(url);return ['https://wayfindercontactcenter.com','https://www.wayfindercontactcenter.com'].includes(u.origin)&&['/agent','/manager'].includes(u.pathname);}catch{return false;}};
@@ -15,10 +31,11 @@ const READER=['detector.js','allcalls.js'];
 const inject=async (id,allowEnable=false)=>{
  try{
   const tab=await chrome.tabs.get(id);
-  if(tab.discarded||!ownPage(tab.url)||(!allowEnable&&!await activeOrPending()))return false;
+  if(tab.discarded||!ownPage(tab.url)||(!allowEnable&&!await activeOrPending())){await trace('inject_skipped',{tab:id,discarded:!!tab.discarded,own:ownPage(tab.url)});return false;}
   await chrome.scripting.executeScript({target:{tabId:id},files:READER});
+  await trace('inject',{tab:id,ok:true});
   return true;
- }catch{return false;}
+ }catch(error){await trace('inject',{tab:id,ok:false,error:errorToken(error)});return false;}
 };
 const readObservation=async (id,allowEnable=false)=>{
  try{return await message(id,{type:'read-observation'});}
@@ -46,21 +63,37 @@ async function synchronize(s,configuration){
   }
   // Keep the last acknowledged result visible while the next request is pending.
   s.syncStartedAt=Date.now();await save(s);
+  await trace('sync',{action:body.action,seq:body.sequence,observed:body.observed,delivery:body.delivery,issue:body.source_issue,manual:body.manual_allcalls,cause:s.cause||null,fresh});
+  const started=Date.now();
   try{
     const result=await message(s.wayfinderTab,{type:'wayfinder-request',body});
     if(!result||result.error||!result.agent_id)throw new Error(result?.error||'Wayfinder has not confirmed automatic protection.');
     identity.agentId=result.agent_id;await chrome.storage.local.set({identity});
     if(typeof result.enabled==='boolean')await chrome.storage.local.set({settings:{enabled:result.enabled,returnAfterWrap:result.return_after_wrap===true,pending:false}});
     s.manualAllcalls=false;s.result=result;s.confirmedAt=Date.now();s.error='';
+    await trace('sync_result',{ok:true,ms:Date.now()-started,enabled:result.enabled,mode:result.mode,target:result.allcalls_target||'none',reason:result.diagnostics?.reason||null,wf:result.diagnostics?.wayfinder_state||null,busy:result.wayfinder_busy===true});
     if(result.enabled!==false&&['on','off'].includes(result.allcalls_target)){
       const target=result.allcalls_target;
       s.lastSwitch={target,confirmed:false,at:Date.now(),reason:result.diagnostics?.reason||'status_change'};
       await save(s);
-      const reply=await message(s.allcallsTab,{type:'set-delivery',target,allcalls_session:s.allcallsSession,issued_at:target==='off'?Date.now():s.measured_at*1000});
-      s.lastSwitch={target,confirmed:reply?.accepted===true,at:Date.now(),reason:result.diagnostics?.reason||(result.wayfinder_busy?'wayfinder_busy':s.observed==='unknown'?'allcalls_unknown':'status_change')};
-      if(!reply?.accepted)s.error='AllCalls '+target.toUpperCase()+' switch was not confirmed. Keep the Take Calls page open.';
+      const issued=Date.now();
+      const why=result.diagnostics?.reason||(result.wayfinder_busy?'wayfinder_busy':s.observed==='unknown'?'allcalls_unknown':'status_change');
+      let reply;
+      try{reply=await message(s.allcallsTab,{type:'set-delivery',target,allcalls_session:s.allcallsSession,issued_at:target==='off'?Date.now():s.measured_at*1000});}
+      catch(error){
+        // Same failure handling as before (outer catch), but the trace and the
+        // last-switch record now say the content script never answered.
+        s.lastSwitch={target,confirmed:false,at:Date.now(),reason:why,detail:'transport:'+errorToken(error)};
+        await trace('switch',{target,accepted:false,detail:'transport',ms:Date.now()-issued,tab:s.allcallsTab});
+        throw error;
+      }
+      const detail=reply?.reason||'no_reason';
+      s.lastSwitch={target,confirmed:reply?.accepted===true,at:Date.now(),reason:why,detail};
+      await trace('switch',{target,accepted:reply?.accepted===true,detail,ms:Date.now()-issued,tab:s.allcallsTab});
+      if(!reply?.accepted)s.error='AllCalls '+target.toUpperCase()+' switch was not confirmed ('+detail+'). Keep the Take Calls page open.';
     }
   }catch(error){s.error=error.message;s.result=null;
+    await trace('sync_result',{ok:false,ms:Date.now()-started,error:errorToken(error)});
     // A transport/configuration error is not permission to change vendor state.
     // Only acknowledged, server-owned pause commands may switch AllCalls.
   }
@@ -79,11 +112,15 @@ async function pair(s){
  return {ac,wf};
 }
 async function observe(m,sender){
- const s=await state(),{ac}=await pair(s);
+ const s=await state(),before={observed:s.observed,delivery:s.delivery,cause:s.cause,issue:s.issue},{ac}=await pair(s);
  if(!ac.some(t=>t.id===sender.tab.id))return;
  s.allcallsTab=sender.tab.id;s.observed=m.observed;s.delivery=m.delivery;s.measured_at=m.measured_at;
+ s.cause=typeof m.cause==='string'?m.cause.slice(0,64):null;
  s.allcallsSession=m.allcalls_session||null;
  s.manualAllcalls=!!s.manualAllcalls||m.manual_allcalls===true;
+ // Trace transitions, not every 2-second heartbeat, so the ring covers minutes.
+ if(before.observed!==s.observed||before.delivery!==s.delivery||before.cause!==s.cause||(before.issue||'')!==(s.issue||''))
+   await trace('observation',{observed:s.observed,delivery:s.delivery,cause:s.cause,manual:m.manual_allcalls===true,issue:s.issue||null,tab:sender.tab.id});
  if(!await activeOrPending()){await save(s);return {accepted:true};}
  if(s.issue){
    s.result=null;
@@ -108,9 +145,9 @@ async function poll(sender){
      const accepted=await observe(m,{tab:ac[0]});
      if(accepted?.accepted&&Number.isSafeInteger(m.manual_generation))await message(ac[0].id,{type:'ack-observation',manual_generation:m.manual_generation,allcalls_session:m.allcalls_session});
      return accepted;
-   }catch{ s.issue='allcalls_reader_unavailable'; }
+   }catch(error){ s.issue='allcalls_reader_unavailable';await trace('reader_unavailable',{where:'poll',tab:ac[0].id,error:errorToken(error)}); }
  }
- s.observed='unknown';s.delivery='unknown';s.measured_at=Math.floor(Date.now()/1000);
+ s.observed='unknown';s.delivery='unknown';s.cause=s.issue||'no_allcalls_tab';s.measured_at=Math.floor(Date.now()/1000);
  await synchronize(s);
 }
 async function configure(m){
@@ -122,11 +159,12 @@ async function configure(m){
  }
  if(!s.wayfinderTab&&wf.length>1)throw new Error('Choose your Wayfinder workspace below the protection switch, then try again.');
  if(!s.wayfinderTab)throw new Error('Open the paired signed-in Wayfinder workspace to change protection.');
- s.observed='unknown';s.delivery='unknown';s.measured_at=0;
+ await trace('configure',{enabled:m.enabled,allcallsTabs:ac.length,wayfinderTabs:wf.length});
+ s.observed='unknown';s.delivery='unknown';s.cause=null;s.measured_at=0;
  if(m.enabled&&ac.length===1){
    s.allcallsTab=ac[0].id;
-   try{const sample=await readObservation(ac[0].id,true);if(valid(sample))Object.assign(s,{observed:sample.observed,delivery:sample.delivery,measured_at:sample.measured_at,manualAllcalls:sample.manual_allcalls===true,allcallsSession:sample.allcalls_session||null});else s.issue='allcalls_reader_unavailable';}
-   catch{s.issue='allcalls_reader_unavailable';}
+   try{const sample=await readObservation(ac[0].id,true);if(valid(sample))Object.assign(s,{observed:sample.observed,delivery:sample.delivery,cause:typeof sample.cause==='string'?sample.cause.slice(0,64):null,measured_at:sample.measured_at,manualAllcalls:sample.manual_allcalls===true,allcallsSession:sample.allcalls_session||null});else{s.issue='allcalls_reader_unavailable';await trace('reader_unavailable',{where:'configure',tab:ac[0].id,error:'invalid_observation'});}}
+   catch(error){s.issue='allcalls_reader_unavailable';await trace('reader_unavailable',{where:'configure',tab:ac[0].id,error:errorToken(error)});}
  }
  await synchronize(s,{enabled:m.enabled});
  if(s.error)throw new Error(s.error);
@@ -146,8 +184,18 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
      if(!s.issue&&readerFailed&&ac.length===1&&ac[0].id===failedReaderTab)s.issue='allcalls_reader_unavailable';
      const current=await chrome.tabs.query({active:true,lastFocusedWindow:true});
      const windows=[...new Set(wf.map(t=>t.windowId))];
-     reply({...s,settings:prefs,workspaces:wf.map(t=>({id:t.id,title:new URL(t.url).pathname==='/manager'?'Manager board':'Agent workspace',current:current.some(c=>c.id===t.id),paired:t.id===pairedTab&&!!s.confirmedAt,window:windows.indexOf(t.windowId)+1,position:Number.isInteger(t.index)?t.index+1:null})),needsWorkspace:wf.length>0});
+     reply({...s,version:VERSION,settings:prefs,workspaces:wf.map(t=>({id:t.id,title:new URL(t.url).pathname==='/manager'?'Manager board':'Agent workspace',current:current.some(c=>c.id===t.id),paired:t.id===pairedTab&&!!s.confirmedAt,window:windows.indexOf(t.windowId)+1,position:Number.isInteger(t.index)?t.index+1:null})),needsWorkspace:wf.length>0});
    }).catch(()=>reply({error:'Could not inspect workspace tabs.'}));return true;
+ }
+ // Read-only diagnostics bundle for support: enumerated trace plus state tokens.
+ // It never includes the Wayfinder result payload, identities or page content.
+ if(m.type==='diagnostics'&&!sender.tab&&sender.url===chrome.runtime.getURL('popup.html')){
+   Promise.all([state(),settings(),chrome.storage.session.get('trace')]).then(([s,prefs,{trace:entries}])=>reply({
+     version:VERSION,extension_id:chrome.runtime.id,captured_at:new Date().toISOString(),
+     settings:{enabled:prefs.enabled===true,pending:prefs.pending===true},
+     state:{observed:s.observed||null,delivery:s.delivery||null,cause:s.cause||null,issue:s.issue||null,error:s.error||null,measured_at:s.measured_at||null,confirmedAt:s.confirmedAt||null,syncStartedAt:s.syncStartedAt||null,allcallsCount:s.allcallsCount??null,wayfinderCount:s.wayfinderCount??null,lastSwitch:s.lastSwitch||null,mode:s.result?.mode||null,reason:s.result?.diagnostics?.reason||null,wayfinder_state:s.result?.diagnostics?.wayfinder_state||null},
+     trace:entries||[],
+   })).catch(error=>reply({error:errorToken(error)}));return true;
  }
  if(m.type==='focus-workspace'&&!sender.tab&&sender.url===chrome.runtime.getURL('popup.html')&&Number.isSafeInteger(m.wayfinderTabId)){
    (async()=>{
@@ -172,6 +220,6 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
 chrome.tabs.onRemoved.addListener(tabId=>{void serial(async()=>{
  if(!await activeOrPending())return;
  const s=await state();
- if(tabId===s.allcallsTab&&s.wayfinderTab){await pair(s);s.observed='unknown';s.delivery='unknown';s.measured_at=Math.floor(Date.now()/1000);await synchronize(s);}
- if(tabId===s.wayfinderTab){s.result=null;s.issue='wayfinder_tab_missing';await save(s);}
+ if(tabId===s.allcallsTab&&s.wayfinderTab){await trace('tab_removed',{role:'allcalls',tab:tabId});await pair(s);s.observed='unknown';s.delivery='unknown';s.cause='allcalls_tab_closed';s.measured_at=Math.floor(Date.now()/1000);await synchronize(s);}
+ if(tabId===s.wayfinderTab){await trace('tab_removed',{role:'wayfinder',tab:tabId});s.result=null;s.issue='wayfinder_tab_missing';await save(s);}
 });});

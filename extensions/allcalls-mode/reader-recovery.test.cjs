@@ -14,7 +14,7 @@ function background({readerAlive=true,discarded=false,enabled=true,url="https://
  const state={readerAlive,discarded};
  const sample={observed:'off',delivery:'off',measured_at:Math.floor(Date.now()/1000),manual_generation:0,allcalls_session:'s1'};
  const chrome={runtime:{id:'ext',getURL:p=>'chrome-extension://ext/'+p,onMessage:{addListener:fn=>listener=fn},onInstalled:{addListener:fn=>installed=fn}},
-  storage:{session:{get:async()=>stored,set:async value=>{stored=structuredClone(value);}},local:{get:async()=>local,set:async value=>{local={...local,...structuredClone(value)};}}},
+  storage:{session:{get:async()=>stored,set:async value=>{stored={...stored,...structuredClone(value)};}},local:{get:async()=>local,set:async value=>{local={...local,...structuredClone(value)};}}},
   scripting:{executeScript:async options=>{injected.push(options);if(denied)throw new Error("Synthetic permission denial");state.readerAlive=true;}},
   tabs:{query:async q=>typeof q.url==='string'?[{id:state.tabId||1,url:'https://allcalls.io/take-calls',discarded:state.discarded}]:[{id:2,url:'https://www.wayfindercontactcenter.com/agent'}],
    get:async id=>({id,url,discarded:state.discarded}),

@@ -9,12 +9,19 @@
   const pageSession=crypto.randomUUID();
   const visible=el=>!!(el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden');
   const normalize=value=>(value||'').replace(/\s+/g,' ').trim().toLowerCase();
+  // Diagnostics: why the last read settled where it did. Enumerated tokens
+  // only; no DOM text, timer contents or customer data ever leave this script.
+  let lastCause='off_page';
   const switchControl=()=>{
     // No legacy click fallback: a lone campaign toggle is not the master switch.
     const controls=Array.from(document.querySelectorAll('button[role="switch"][aria-checked]'))
       .filter(el=>visible(el)&&/^turn inbound calls (on|off)$/.test(normalize(el.getAttribute('aria-label'))));
     const heading=Array.from(document.querySelectorAll('h1,h2')).some(el=>visible(el)&&normalize(el.textContent)==='take calls');
-    return heading&&controls.length===1&&['true','false'].includes(controls[0].getAttribute('aria-checked'))?controls[0]:null;
+    if(!heading){lastCause='no_heading';return null;}
+    if(controls.length===0){lastCause='no_switch';return null;}
+    if(controls.length>1){lastCause='multiple_switches';return null;}
+    if(!['true','false'].includes(controls[0].getAttribute('aria-checked'))){lastCause='switch_state_unreadable';return null;}
+    return controls[0];
   };
   const statusRegion=control=>{
     // Observed 2026-11-05: direct Call Status header, sibling row containing
@@ -47,7 +54,7 @@
     if(control&&event.target.closest('button[role="switch"]')===control)manualGeneration++;
   },true);
   function read(){
-    if(!onPage())return {observed:'unknown',delivery:'unknown',allcalls_session:pageSession};
+    if(!onPage()){lastCause='off_page';return {observed:'unknown',delivery:'unknown',allcalls_session:pageSession,cause:lastCause};}
     const control=switchControl();
     const delivery=control?(control.getAttribute('aria-checked')==='true'?'on':'off'):'unknown';
     // Busy evidence is conservative; idle evidence must be in the status region.
@@ -72,13 +79,19 @@
       .some(el=>/^(hang up|end call|disconnect call|mute(?: microphone)?|unmute(?: microphone)?|hold(?: call)?|resume call|transfer(?: call)?)$/.test(normalize(el.getAttribute('aria-label')||el.textContent)));
     const timer=Array.from(document.querySelectorAll('[role="status"],[role="alert"]')).filter(visible)
       .some(el=>/\b\d{1,2}:\d{2}\b/.test(el.textContent));
-    let observed=busyState(texts(document))||(ringingControls?'ringing':callControls||timer?'talking':'unknown');
+    const busyText=busyState(texts(document));
+    let observed=busyText||(ringingControls?'ringing':callControls||timer?'talking':'unknown');
+    let cause=busyText?'busy_text':ringingControls?'ringing_controls':callControls?'call_controls':timer?'call_timer':'';
     if(!['ringing','talking','wrap'].includes(observed)){
       const offline=statusLabels.some(t=>/^(offline(?: [–-] inbound calls are off)?|you're off [–-] no calls will be sent)$/.test(t));
-      const waiting=statusLabels.some(t=>/^(waiting|online [–-] taking calls)$/.test(t));
+      const waiting=statusLabels.some(t=>/^(waiting|online [–-] (?:taking calls|waiting for inbound calls))$/.test(t));
       observed=delivery==='off'&&offline?'off':delivery==='on'&&waiting?'waiting':'unknown';
+      // Distinguish structural failures (switch/region not found) from wording
+      // failures (region found, idle label unrecognized) and contradictions.
+      cause=observed!=='unknown'?'idle_label':!control?lastCause:!region?'no_status_region':statusLabels.length===0?'empty_status_region':(offline||waiting)?'label_switch_mismatch':'no_idle_label';
     }
-    return {observed,delivery,allcalls_session:pageSession};
+    lastCause=cause;
+    return {observed,delivery,allcalls_session:pageSession,cause};
   }
   async function sample(){
     if(inFlight||!onPage())return;
@@ -95,16 +108,22 @@
     if(sender.id===chrome.runtime.id&&!sender.tab&&message.type==='ack-observation'&&Number.isSafeInteger(message.manual_generation)&&message.manual_generation>=0&&message.manual_generation<=manualGeneration){if(message.allcalls_session!==pageSession){reply({accepted:false});return;}acknowledgedManual=Math.max(acknowledgedManual,message.manual_generation);reply({accepted:true});return;}
     if(sender.id===chrome.runtime.id&&!sender.tab&&message.type==='read-observation'){reply({...read(),manual_allcalls:manualGeneration!==acknowledgedManual,manual_generation:manualGeneration,measured_at:Math.floor(Date.now()/1000)});return;}
     if(sender.id!==chrome.runtime.id||sender.tab||message.type!=='set-delivery'||!['on','off'].includes(message.target)||!Number.isSafeInteger(message.issued_at)||Math.abs(Date.now()-message.issued_at)>5000)return;
-    if(!onPage()||message.allcalls_session!==pageSession){reply({accepted:false});return;}
+    // Every refusal names its reason so an unconfirmed pause can be diagnosed
+    // from the popup trace without reproducing it on a live call.
+    if(!onPage()){reply({accepted:false,reason:'off_page'});return;}
+    if(message.allcalls_session!==pageSession){reply({accepted:false,reason:'session_mismatch'});return;}
     const control=switchControl(),value=read();
-    if(control&&message.target==='off'&&control.getAttribute('aria-checked')==='false'){reply({accepted:true});return;}
-    if(!control||['unknown','ringing','talking','wrap'].includes(value.observed)||(message.target==='on'&&(['unknown','ringing','talking','wrap'].includes(value.observed)||manualGeneration!==acknowledgedManual))){reply({accepted:false});return;}
+    if(control&&message.target==='off'&&control.getAttribute('aria-checked')==='false'){reply({accepted:true,reason:'already_off'});return;}
+    if(!control){reply({accepted:false,reason:lastCause});return;}
+    if(['unknown','ringing','talking','wrap'].includes(value.observed)){reply({accepted:false,reason:value.observed==='unknown'?'observed_unknown:'+value.cause:'observed_'+value.observed});return;}
+    if(message.target==='on'&&manualGeneration!==acknowledgedManual){reply({accepted:false,reason:'manual_override_pending'});return;}
     const checked=message.target==='on';
-    if((control.getAttribute('aria-checked')==='true')===checked){reply({accepted:true});return;}
-    if(control.disabled||Date.now()-lastCommand<1500){reply({accepted:false});return;}
+    if((control.getAttribute('aria-checked')==='true')===checked){reply({accepted:true,reason:'already_'+message.target});return;}
+    if(control.disabled){reply({accepted:false,reason:'switch_disabled'});return;}
+    if(Date.now()-lastCommand<1500){reply({accepted:false,reason:'rate_limited'});return;}
     lastCommand=Date.now();control.click();
     // A click is not confirmation. The next observation must report the actual state.
-    setTimeout(()=>reply({accepted:switchControl()?.getAttribute('aria-checked')===String(checked)}),1000);
+    setTimeout(()=>{const after=switchControl()?.getAttribute('aria-checked');reply({accepted:after===String(checked),reason:after===String(checked)?'clicked_confirmed':after==null?'clicked_switch_lost':'clicked_readback_mismatch'});},1000);
     return true;
   });
   let queued=false;
